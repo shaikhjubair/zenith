@@ -167,7 +167,9 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
               )}
             </motion.div>
           )}
-        </motion.div>
+        </AnimatePresence>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
