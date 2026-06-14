@@ -39,12 +39,12 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-background/80 backdrop-blur-sm"
           onClick={onClose}
         ></motion.div>
         
@@ -52,7 +52,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-md bg-surface/90 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl z-10"
+          className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto bg-surface/90 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10"
         >
           <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
             <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
