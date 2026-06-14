@@ -4,7 +4,20 @@ import { Sparkles, Brain, Activity, Droplet } from 'lucide-react';
 import { useStore } from '../useStore';
 import { STORES, getSetting } from '../db';
 import { useUserProfile } from '../context/UserProfileContext';
-import { GoogleGenAI } from '@google/genai';
+
+const fetchGemini = async (prompt: string, key: string) => {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    })
+  });
+  if (!response.ok) throw new Error(await response.text());
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+};
 
 export function DashboardModule() {
   const [studyCourses] = useStore<any>(STORES.studyCourses);
@@ -28,13 +41,8 @@ export function DashboardModule() {
         
         const systemPrompt = `Act as an elite life coach and doctor. Analyze my recent activity, diet, and fasting data. Give a harsh, direct, and actionable 3-sentence review on my lifestyle improvement.\n\nContext: ${promptContext}`;
 
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: systemPrompt
-        });
-        
-        setAiInsight(response.text || 'No insights generated.');
+        const insightText = await fetchGemini(systemPrompt, apiKey);
+        setAiInsight(insightText || 'No insights generated.');
       } catch (err: any) {
         console.error("Gemini Insight Fetch Error:", err);
         setAiInsight(`AI Coach Error: ${err.message || 'Check your API Key.'}`);

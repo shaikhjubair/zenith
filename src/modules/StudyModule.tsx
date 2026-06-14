@@ -63,10 +63,10 @@ const TimerWidget = () => {
   };
 
   return (
-    <div className="bg-surface-container/30 rounded-[32px] p-8 border border-white/5 glass-edge flex flex-col items-center shadow-lg w-full relative z-10">
-      <div className="flex gap-4 mb-4">
-        <button onClick={() => { setTimerMode('stopwatch'); setTimerRunning(false); setTimerSeconds(0); }} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${timerMode === 'stopwatch' ? 'bg-primary text-on-primary' : 'bg-white/5 text-on-surface-variant hover:bg-white/10'}`}>Stopwatch</button>
-        <button onClick={() => { setTimerMode('countdown'); setTimerRunning(false); setTimerSeconds(inputMinutes * 60); }} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${timerMode === 'countdown' ? 'bg-primary text-on-primary' : 'bg-white/5 text-on-surface-variant hover:bg-white/10'}`}>Countdown</button>
+    <div className="bg-surface-container/30 rounded-[32px] p-8 border border-white/5 glass-edge flex flex-col items-center shadow-lg w-full relative z-10 max-w-full overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-wrap justify-center gap-4 mb-4 w-full">
+        <button onClick={() => { setTimerMode('stopwatch'); setTimerRunning(false); setTimerSeconds(0); }} className={`w-full md:w-auto px-4 py-2 rounded-xl text-sm font-medium transition-colors ${timerMode === 'stopwatch' ? 'bg-primary text-on-primary' : 'bg-white/5 text-on-surface-variant hover:bg-white/10'}`}>Stopwatch</button>
+        <button onClick={() => { setTimerMode('countdown'); setTimerRunning(false); setTimerSeconds(inputMinutes * 60); }} className={`w-full md:w-auto px-4 py-2 rounded-xl text-sm font-medium transition-colors ${timerMode === 'countdown' ? 'bg-primary text-on-primary' : 'bg-white/5 text-on-surface-variant hover:bg-white/10'}`}>Countdown</button>
       </div>
       
       {timerMode === 'countdown' && !timerRunning && timerSeconds === inputMinutes * 60 && (
@@ -80,11 +80,11 @@ const TimerWidget = () => {
         {formatTime(timerSeconds)}
       </div>
 
-      <div className="flex gap-4">
-        <button onClick={toggleTimer} className="px-8 py-3 rounded-xl bg-primary text-on-primary font-medium hover:bg-primary/90 transition-colors">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-4 w-full">
+        <button onClick={toggleTimer} className="flex-1 px-8 py-3 rounded-xl bg-primary text-on-primary font-medium hover:bg-primary/90 transition-colors">
           {timerRunning ? 'Pause' : 'Start'}
         </button>
-        <button onClick={resetTimer} className="px-8 py-3 rounded-xl bg-white/5 text-on-surface font-medium hover:bg-white/10 transition-colors border border-white/10">
+        <button onClick={resetTimer} className="flex-1 px-8 py-3 rounded-xl bg-white/5 text-on-surface font-medium hover:bg-white/10 transition-colors border border-white/10">
           Reset
         </button>
       </div>
@@ -195,16 +195,16 @@ export function StudyModule() {
           <div className="p-8 min-h-[400px]">
             {activeTab === 'topics' && (
               <div className="flex flex-col gap-6">
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-4">
                   <input
                     type="text"
                     value={newTopic}
                     onChange={(e) => setNewTopic(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddTopic()}
                     placeholder="New topic to study..."
-                    className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-on-surface outline-none focus:border-primary/50 transition-colors"
+                    className="flex-1 w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-on-surface outline-none focus:border-primary/50 transition-colors"
                   />
-                  <button onClick={handleAddTopic} className="px-6 py-3 rounded-xl bg-primary text-on-primary font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
+                  <button onClick={handleAddTopic} className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary text-on-primary font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
                     <Plus className="w-5 h-5" /> Add
                   </button>
                 </div>
@@ -301,7 +301,7 @@ export function StudyModule() {
   };
 
   return (
-    <div className="relative overflow-hidden z-0 h-full w-full -m-8 p-8 flex-1 flex flex-col">
+    <div className="relative overflow-x-hidden overflow-y-auto z-0 h-full w-full max-w-[100vw] -m-8 p-8 flex-1 flex flex-col">
       <div className="absolute inset-0 bg-[url('/study_bg.png')] bg-cover bg-center mix-blend-overlay opacity-50 pointer-events-none z-0"></div>
       <div className="absolute inset-0 bg-black/60 pointer-events-none z-0"></div>
 
