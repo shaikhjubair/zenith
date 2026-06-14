@@ -16,7 +16,7 @@ export function DashboardModule() {
 
   useEffect(() => {
     const fetchInsight = async () => {
-      const apiKey = await getSetting('apiKey');
+      const apiKey = localStorage.getItem('GEMINI_API_KEY');
       if (!apiKey) return;
       
       setInsightLoading(true);
@@ -25,7 +25,7 @@ export function DashboardModule() {
         
         const promptContext = `Profile: Height ${profile.height}, Weight ${profile.weight}, Goal: ${profile.primaryGoal}. Fasting Mode: ${profile.isFasting}. Diet History: ${dietContext}`;
         
-        const systemPrompt = `You are an elite, professional doctor and life coach. Analyze the provided diet history, water intake, and fasting status. Give strict, actionable advice on whether the current meal plan helps reduce belly fat and optimize health. Keep it under 4 sentences.\n\nContext: ${promptContext}`;
+        const systemPrompt = `Act as an elite life coach and doctor. Analyze my recent activity, diet, and fasting data. Give a harsh, direct, and actionable 3-sentence review on my lifestyle improvement.\n\nContext: ${promptContext}`;
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
@@ -102,6 +102,59 @@ export function DashboardModule() {
         <div>
           <p className="text-[12px] font-bold text-on-surface-variant uppercase tracking-widest">Workout Routines</p>
           <p className="text-2xl font-bold text-on-surface">{sportsExercises.length}</p>
+        </div>
+      </div>
+
+      {/* Progress Trend Graph */}
+      <div className="lg:col-span-12 bg-surface/60 backdrop-blur-xl border border-white/20 rounded-[32px] p-8 glass-card relative overflow-hidden transition-transform hover:-translate-y-1">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/10 rounded-full blur-[80px] pointer-events-none"></div>
+        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-on-surface mb-1">Consistency Matrix</h3>
+            <p className="text-[14px] text-on-surface-variant flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(192,193,255,0.8)]"></span>
+              Upward Trend: +12% this week
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-on-surface-variant">7 Days</span>
+            <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-on-surface-variant">30 Days</span>
+          </div>
+        </div>
+        
+        <div className="relative w-full h-48 sm:h-64 mt-4 z-10">
+          <svg className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(192,193,255,0.4)]" viewBox="0 0 1000 200" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(192,193,255,0.5)" />
+                <stop offset="100%" stopColor="rgba(192,193,255,0)" />
+              </linearGradient>
+              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#c0c1ff" />
+                <stop offset="50%" stopColor="#00e676" />
+                <stop offset="100%" stopColor="#651fff" />
+              </linearGradient>
+            </defs>
+            <path 
+              d="M 0,180 C 100,160 150,190 250,140 C 350,90 400,150 500,100 C 600,50 650,110 750,70 C 850,30 900,60 1000,20 L 1000,200 L 0,200 Z" 
+              fill="url(#trendGradient)" 
+            />
+            <path 
+              d="M 0,180 C 100,160 150,190 250,140 C 350,90 400,150 500,100 C 600,50 650,110 750,70 C 850,30 900,60 1000,20" 
+              fill="none" 
+              stroke="url(#lineGradient)" 
+              strokeWidth="6" 
+              strokeLinecap="round"
+              className="drop-shadow-[0_0_10px_rgba(101,31,255,0.8)]"
+            />
+            {/* Simulated Data Points */}
+            {[
+              { x: 0, y: 180 }, { x: 250, y: 140 }, { x: 500, y: 100 },
+              { x: 750, y: 70 }, { x: 1000, y: 20 }
+            ].map((pt, i) => (
+              <circle key={i} cx={pt.x} cy={pt.y} r="6" fill="#fff" stroke="#651fff" strokeWidth="3" className="drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
+            ))}
+          </svg>
         </div>
       </div>
 
