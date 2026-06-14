@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/Zenith/',
+    base: '/zenith/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
