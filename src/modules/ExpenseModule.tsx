@@ -294,7 +294,7 @@ export function ExpenseModule() {
   return (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} 
-      className="max-w-6xl w-full mx-auto flex flex-col gap-8 h-full relative z-0"
+      className="max-w-6xl w-full mx-auto flex flex-col gap-8 h-full relative z-0 min-h-[80vh] flex-1"
     >
         {/* Abstract Mesh Background */}
         <div className="absolute top-0 left-0 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
