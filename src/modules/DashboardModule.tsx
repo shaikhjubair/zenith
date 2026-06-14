@@ -35,11 +35,16 @@ export function DashboardModule() {
           })
         });
 
-        if (!response.ok) throw new Error('API Error');
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("GEMINI API REJECTION DETAILS:", errorData);
+          throw new Error(errorData.error?.message || "API Connection Failed");
+        }
         const data = await response.json();
         setAiInsight(data.candidates?.[0]?.content?.parts?.[0]?.text || 'No insights generated.');
-      } catch (err) {
-        setAiInsight('Failed to connect to AI Coach. Check your API Key.');
+      } catch (err: any) {
+        console.error("Gemini Insight Fetch Error:", err);
+        setAiInsight(`AI Coach Error: ${err.message || 'Check your API Key.'}`);
       } finally {
         setInsightLoading(false);
       }
