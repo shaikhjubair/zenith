@@ -114,7 +114,7 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 backdrop-blur-md w-full min-h-full p-4 md:p-8"
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 backdrop-blur-md w-full h-[100dvh] overflow-hidden m-0 p-0"
           >
             {/* Background Aurora Blur for Lock Screen */}
             <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none overflow-hidden">
@@ -126,7 +126,7 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
               initial={{ opacity: 0, scale: 0.95 }}
               animate={authStatus === 'error' ? { opacity: 1, scale: 1, x: [-15, 15, -10, 10, 0] } : { opacity: 1, scale: 1, x: 0 }}
               transition={authStatus === 'error' ? { duration: 0.4 } : { type: "spring", stiffness: 300, damping: 15 }}
-              className="relative z-10 bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] p-8 flex flex-col items-center justify-center shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)] w-full max-w-sm min-h-[400px]"
+              className="relative z-10 bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] p-6 md:p-8 flex flex-col items-center justify-center shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)] w-[calc(100%-2rem)] max-w-sm"
             >
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-[60px] rounded-full pointer-events-none"></div>
 
@@ -156,15 +156,15 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="w-full flex flex-col items-center overflow-hidden pt-6"
+              className="w-full flex flex-col items-center overflow-hidden pt-4"
             >
-              <h2 className="text-[24px] font-bold text-on-surface mb-2">{moduleName} Locked</h2>
-              <p className="text-[14px] text-on-surface-variant text-center mb-8">
+              <h2 className="text-[24px] font-bold text-on-surface mb-1">{moduleName} Locked</h2>
+              <p className="text-[14px] text-on-surface-variant text-center mb-6">
                 Enter your secure PIN to access this sensitive module.
               </p>
 
               {/* PIN Dots */}
-              <div className="flex gap-4 mb-8">
+              <div className="flex gap-4 mb-6">
                 {[0, 1, 2, 3].map((i) => (
                   <motion.div 
                     key={i}
