@@ -46,6 +46,10 @@ export function DashboardModule() {
     };
 
     fetchInsight();
+    
+    const handleKeyUpdate = () => fetchInsight();
+    window.addEventListener('API_KEY_UPDATED', handleKeyUpdate);
+    return () => window.removeEventListener('API_KEY_UPDATED', handleKeyUpdate);
   }, [dietEntries, profile]);
 
 

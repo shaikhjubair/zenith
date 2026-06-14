@@ -4,7 +4,8 @@ import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useStore } from '../useStore';
 import { STORES } from '../db';
-import { Plus, Minus, X, Info, Droplet } from 'lucide-react';
+import { Plus, Minus, X, Info, Droplet, Activity } from 'lucide-react';
+import { useUserProfile } from '../context/UserProfileContext';
 
 interface DietEntry {
   id?: number;
@@ -51,6 +52,7 @@ const DAY_LABELS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 export function DietModule() {
   const [entries, actions, loading] = useStore<DietEntry>(STORES.dietEntries);
   const [meals, mealActions, mealsLoading] = useStore<DietMeal>(STORES.dietMeals);
+  const { profile, updateProfile } = useUserProfile();
   
   const [showCalorieModal, setShowCalorieModal] = useState(false);
   const [showMealModal, setShowMealModal] = useState(false);
@@ -307,10 +309,29 @@ export function DietModule() {
         </div>
       </div>
 
+      {/* Fasting / Roza Mode (Global) */}
+      <div className="lg:col-span-4 bg-surface/60 backdrop-blur-xl border border-white/20 border-t-white/30 border-l-white/30 rounded-[32px] p-6 flex items-center justify-between glass-card transition-transform hover:-translate-y-1">
+        <div>
+          <h3 className="text-[16px] text-on-surface-variant mb-1 font-medium flex items-center gap-2">
+            Global Fasting / Roza
+            <Info className="w-4 h-4 text-tertiary opacity-50" />
+          </h3>
+          <p className="text-[12px] font-semibold text-tertiary uppercase tracking-widest">
+            {profile.isFasting ? 'Active Mode' : 'Standard Mode'}
+          </p>
+        </div>
+        <div
+          onClick={() => updateProfile({ isFasting: !profile.isFasting })}
+          className={`w-14 h-8 rounded-full p-1 flex items-center cursor-pointer transition-colors ${profile.isFasting ? 'bg-tertiary/40 shadow-[0_0_15px_rgba(255,200,100,0.2)] border border-tertiary/50' : 'bg-surface-container'}`}
+        >
+          <div className={`w-6 h-6 rounded-full transition-transform shadow-sm ${profile.isFasting ? 'bg-tertiary translate-x-6' : 'bg-on-surface-variant/50 translate-x-0'}`}></div>
+        </div>
+      </div>
+
       {/* Intermittent Fasting */}
       <div className="lg:col-span-4 bg-surface/60 backdrop-blur-xl border border-white/20 border-t-white/30 border-l-white/30 rounded-[32px] p-6 flex items-center justify-between glass-card transition-transform hover:-translate-y-1">
         <div>
-          <h3 className="text-[16px] text-on-surface-variant mb-1 font-medium">Fasting Tracker</h3>
+          <h3 className="text-[16px] text-on-surface-variant mb-1 font-medium">Daily Fast (Local)</h3>
           <p className="text-[12px] font-semibold text-primary uppercase tracking-widest">
             {isFasting ? 'Active' : 'Inactive'}
           </p>

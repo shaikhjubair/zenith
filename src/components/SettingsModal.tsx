@@ -26,8 +26,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setTimeout(() => setSaveStatus(''), 2000);
       return;
     }
+    const isValidKey = trimmed.startsWith('AIza') || trimmed.startsWith('AQ.');
+    if (!isValidKey) {
+      setSaveStatus('Invalid Key Format.');
+      setTimeout(() => setSaveStatus(''), 2000);
+      return;
+    }
     console.log("SENDING KEY TO GOOGLE:", trimmed);
     localStorage.setItem('GEMINI_API_KEY', trimmed);
+    window.dispatchEvent(new Event('API_KEY_UPDATED'));
     setSaveStatus('Saved successfully!');
     setTimeout(() => setSaveStatus(''), 2000);
   };
@@ -122,7 +129,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     type="password" 
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="AIzaSy..." 
+                    placeholder="Enter your Gemini API Key..." 
                     className="flex-1 bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-[14px] font-mono text-on-surface focus:outline-none focus:border-primary/50 transition-colors"
                   />
                   <button onClick={handleClearKey} className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-on-surface font-bold text-[14px] hover:bg-error/20 hover:text-error hover:border-error/50 transition-colors flex items-center justify-center">

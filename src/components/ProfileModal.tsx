@@ -26,6 +26,17 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     onClose();
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, avatarUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -55,14 +66,20 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Profile Picture URL</label>
-              <input
-                type="text"
-                value={formData.avatarUrl}
-                onChange={e => setFormData({...formData, avatarUrl: e.target.value})}
-                placeholder="https://example.com/avatar.jpg"
-                className="w-full bg-surface-container/50 border border-white/10 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary/50 transition-colors"
-              />
+              <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Profile Picture</label>
+              <div className="flex items-center gap-4">
+                {formData.avatarUrl && (
+                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-white/20">
+                    <img src={formData.avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full bg-surface-container/50 border border-white/10 rounded-xl px-4 py-2 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30"
+                />
+              </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -101,22 +118,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               />
             </div>
             
-            <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 mt-2">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${formData.isFasting ? 'bg-tertiary/20 text-tertiary' : 'bg-surface-container text-on-surface-variant'}`}>
-                  <Activity className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-on-surface text-sm">Fasting / Roza Mode</p>
-                  <p className="text-xs text-on-surface-variant">Adjusts AI coaching expectations</p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" checked={formData.isFasting} onChange={e => setFormData({...formData, isFasting: e.target.checked})} />
-                <div className="w-11 h-6 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-tertiary"></div>
-              </label>
-            </div>
-            
+
             <div className="pt-4">
               <button type="submit" className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
                 <Save className="w-5 h-5" /> Save Profile
