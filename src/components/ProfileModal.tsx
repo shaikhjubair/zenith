@@ -39,12 +39,12 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-sm min-h-[100dvh]">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+          className="absolute inset-0 z-0"
           onClick={onClose}
         ></motion.div>
         
@@ -52,19 +52,19 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto bg-surface/90 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10"
+          className="relative w-full max-w-md bg-surface-container-high border border-white/10 rounded-[32px] p-6 shadow-2xl max-h-[85dvh] overflow-y-auto flex flex-col gap-4 m-auto z-10"
         >
-          <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+          <div className="pb-4 border-b border-white/10 flex justify-between items-center">
             <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
               <User className="w-5 h-5 text-primary" />
               User Profile
             </h3>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-on-surface-variant transition-colors">
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-on-surface-variant transition-colors z-20 relative">
               <X className="w-5 h-5" />
             </button>
           </div>
           
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Profile Picture</label>
               <div className="flex items-center gap-4">
