@@ -4,6 +4,7 @@ import { Sparkles, Brain, Activity, Droplet } from 'lucide-react';
 import { useStore } from '../useStore';
 import { STORES, getSetting } from '../db';
 import { useUserProfile } from '../context/UserProfileContext';
+import { GoogleGenAI } from '@google/genai';
 
 export function DashboardModule() {
   const [studyCourses] = useStore<any>(STORES.studyCourses);
@@ -27,37 +28,13 @@ export function DashboardModule() {
         
         const systemPrompt = `Act as an elite life coach and doctor. Analyze my recent activity, diet, and fasting data. Give a harsh, direct, and actionable 3-sentence review on my lifestyle improvement.\n\nContext: ${promptContext}`;
 
-        const modelsToTry = ['gemini-1.5-flash-latest', 'gemini-pro'];
-        let successData = null;
-        let lastError = null;
-
-        for (const model of modelsToTry) {
-          try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: systemPrompt }] }]
-              })
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error?.message || "API Connection Failed");
-            }
-            successData = await response.json();
-            break; // Stop trying if successful
-          } catch (err: any) {
-            console.error(`GEMINI API REJECTION DETAILS (${model}):`, err);
-            lastError = err;
-          }
-        }
-
-        if (!successData) {
-          throw lastError || new Error("All models failed.");
-        }
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: 'gemini-1.5-flash',
+            contents: systemPrompt
+        });
         
-        setAiInsight(successData.candidates?.[0]?.content?.parts?.[0]?.text || 'No insights generated.');
+        setAiInsight(response.text || 'No insights generated.');
       } catch (err: any) {
         console.error("Gemini Insight Fetch Error:", err);
         setAiInsight(`AI Coach Error: ${err.message || 'Check your API Key.'}`);
