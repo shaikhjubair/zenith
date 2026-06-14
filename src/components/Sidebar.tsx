@@ -8,11 +8,13 @@ import {
   HeartHandshake, 
   Dumbbell, 
   LibraryBig, 
-  Plus,
+  LogOut,
   Compass,
   X,
   LayoutDashboard
 } from 'lucide-react';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 
 interface SidebarProps {
   activeModule: string;
@@ -92,9 +94,12 @@ export function Sidebar({ activeModule, setActiveModule, isOpen, onClose }: Side
       </div>
 
         <div className="p-8 pb-12 md:pb-8">
-          <button className="w-full py-3 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-300 flex items-center justify-center gap-2 text-on-surface text-[16px] glass-edge">
-            <Plus className="w-5 h-5" />
-            Add Module
+          <button 
+            onClick={() => signOut(auth)}
+            className="w-full py-3 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-error/20 hover:text-error hover:border-error/50 transition-all duration-300 flex items-center justify-center gap-2 text-on-surface text-[16px] glass-edge"
+          >
+            <LogOut className="w-5 h-5" />
+            Logout
           </button>
         </div>
       </motion.aside>

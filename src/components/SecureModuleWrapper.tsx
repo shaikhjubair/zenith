@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { Lock, X, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Lock, Unlock, X, ShieldCheck } from 'lucide-react';
 
 interface SecureModuleWrapperProps {
   children: React.ReactNode;
@@ -11,6 +11,7 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const CORRECT_PIN = '2133';
 
@@ -22,7 +23,8 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
       
       if (newPin.length === 4) {
         if (newPin === CORRECT_PIN) {
-          setIsUnlocked(true);
+          setSuccess(true);
+          setTimeout(() => setIsUnlocked(true), 800);
         } else {
           setError(true);
           if (navigator.vibrate) navigator.vibrate(200);
@@ -44,7 +46,11 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden -m-8 p-8">
+    <motion.div 
+      animate={success ? { opacity: 0, scale: 0.95 } : { opacity: 1, scale: 1 }}
+      transition={{ duration: 0.6 }}
+      className="flex-1 flex flex-col items-center justify-center relative overflow-hidden -m-8 p-8"
+    >
       {/* Background Aurora Blur for Lock Screen */}
       <div className="absolute inset-0 bg-background/50 backdrop-blur-3xl z-0 flex items-center justify-center">
         <div className="absolute w-96 h-96 bg-primary/20 rounded-full blur-[120px] mix-blend-screen animate-pulse duration-10000 -top-20 -left-20"></div>
@@ -59,9 +65,27 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-[60px] rounded-full pointer-events-none"></div>
 
-        <div className="w-16 h-16 rounded-[20px] bg-gradient-to-br from-primary/30 to-surface/10 border border-primary/30 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(255,180,166,0.15),inset_1px_1px_0px_rgba(255,255,255,0.2)]">
-          <Lock className="w-8 h-8 text-primary" strokeWidth={1.5} />
-        </div>
+        <motion.div 
+          animate={
+            success 
+              ? { scale: 1.3, filter: 'drop-shadow(0 0 15px #22c55e)' } 
+              : error 
+                ? { x: [-10, 10, -10, 10, 0] } 
+                : {}
+          }
+          transition={{ duration: success ? 0.5 : 0.4 }}
+          className={`w-16 h-16 rounded-[20px] bg-gradient-to-br flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(255,180,166,0.15),inset_1px_1px_0px_rgba(255,255,255,0.2)] border ${
+            success ? 'from-green-500/30 to-surface/10 border-green-500/50' : 
+            error ? 'from-error/30 to-surface/10 border-error/50' : 
+            'from-primary/30 to-surface/10 border-primary/30'
+          }`}
+        >
+          {success ? (
+            <Unlock className="w-8 h-8 text-green-500" strokeWidth={1.5} />
+          ) : (
+            <Lock className={`w-8 h-8 ${error ? 'text-error' : 'text-primary'}`} strokeWidth={1.5} />
+          )}
+        </motion.div>
 
         <h2 className="text-[24px] font-bold text-on-surface mb-2">{moduleName} Locked</h2>
         <p className="text-[14px] text-on-surface-variant text-center mb-8">
@@ -122,6 +146,6 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
           </motion.div>
         )}
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
