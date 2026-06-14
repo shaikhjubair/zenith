@@ -299,9 +299,8 @@ export function ExpenseModule() {
         {/* Abstract Mesh Background */}
         <div className="absolute top-0 left-0 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-tertiary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
-        <div className="absolute inset-0 bg-[url('/expense_bg.png')] bg-cover bg-center mix-blend-overlay opacity-30 pointer-events-none z-0"></div>
-        <div className="absolute inset-0 bg-black/60 pointer-events-none z-0"></div>
-        <div className="absolute inset-0 bg-black/60 pointer-events-none z-0"></div>
+        <div className="fixed inset-0 bg-[url('https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay opacity-40 pointer-events-none z-[-2]"></div>
+        <div className="fixed inset-0 bg-black/60 pointer-events-none z-[-1]"></div>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 relative z-10">
             <div className="max-w-full">
               <h2 className="text-[28px] md:text-[32px] font-bold text-on-surface tracking-tight leading-none mb-1 break-words">Expense Ledger</h2>

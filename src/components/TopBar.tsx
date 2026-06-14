@@ -1,5 +1,8 @@
 import { Search, Bell, Settings, Menu } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useUserProfile } from '../context/UserProfileContext';
+import { ProfileModal } from './ProfileModal';
+import { useState } from 'react';
 
 interface TopBarProps {
   title?: string;
@@ -10,7 +13,10 @@ interface TopBarProps {
 }
 
 export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSearch }: TopBarProps) {
-  const { hasUnread, clearUnread } = useNotifications();
+  const { notifications, hasUnread, clearUnread } = useNotifications();
+  const { profile } = useUserProfile();
+  const [showProfile, setShowProfile] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   return (
     <header className="fixed top-0 right-0 w-full md:w-[calc(100%-280px)] h-20 px-6 flex justify-between items-center bg-background/80 md:bg-transparent backdrop-blur-md md:backdrop-blur-none z-30">
@@ -33,25 +39,67 @@ export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSea
           </div>
         </div>
 
-        <button 
-          onClick={clearUnread} 
-          className="relative w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5"
-        >
-          <Bell className="w-5 h-5" />
-          {hasUnread && (
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-error animate-pulse border border-background"></span>
+        <div className="relative">
+          <button 
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              if (hasUnread) clearUnread();
+            }} 
+            className="relative w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5"
+          >
+            <Bell className="w-5 h-5" />
+            {hasUnread && (
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-error animate-pulse border border-background"></span>
+            )}
+          </button>
+
+          {showNotifications && (
+            <div className="absolute top-full right-0 mt-4 w-80 bg-surface/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center">
+                <h3 className="font-bold text-on-surface">Notifications</h3>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-on-surface-variant text-sm">
+                    No new notifications
+                  </div>
+                ) : (
+                  <div className="flex flex-col">
+                    {notifications.map(n => (
+                      <div key={n.id} className="p-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onClick={() => {
+                        window.dispatchEvent(new CustomEvent('NAVIGATE_MODULE', { detail: n.path }));
+                        setShowNotifications(false);
+                      }}>
+                        <p className="text-sm font-bold text-on-surface mb-1">{n.title}</p>
+                        <p className="text-xs text-on-surface-variant">{n.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
+
         <button onClick={onOpenSettings} className="w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5">
           <Settings className="w-5 h-5" />
         </button>
 
-        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#651fff] to-[#00e676] p-[2px] shadow-[0_0_15px_rgba(101,31,255,0.4)]">
+        <button 
+          onClick={() => setShowProfile(true)}
+          className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#651fff] to-[#00e676] p-[2px] shadow-[0_0_15px_rgba(101,31,255,0.4)] hover:scale-105 transition-transform"
+        >
           <div className="w-full h-full rounded-full bg-surface/80 backdrop-blur-md flex items-center justify-center overflow-hidden border border-white/20">
-            <span className="text-[14px] font-bold text-transparent bg-clip-text bg-gradient-to-tr from-[#651fff] to-[#00e676]">SJ</span>
+            {profile.avatarUrl ? (
+              <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[14px] font-bold text-transparent bg-clip-text bg-gradient-to-tr from-[#651fff] to-[#00e676]">SJ</span>
+            )}
           </div>
-        </div>
+        </button>
       </div>
+
+      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
     </header>
   );
 }

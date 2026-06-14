@@ -2,12 +2,51 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, Brain, Activity, Droplet } from 'lucide-react';
 import { useStore } from '../useStore';
-import { STORES } from '../db';
+import { STORES, getSetting } from '../db';
+import { useUserProfile } from '../context/UserProfileContext';
 
 export function DashboardModule() {
   const [studyCourses] = useStore<any>(STORES.studyCourses);
   const [dietEntries] = useStore<any>(STORES.dietEntries);
   const [sportsExercises] = useStore<any>(STORES.sportsExercises);
+  
+  const { profile } = useUserProfile();
+  const [aiInsight, setAiInsight] = useState<string>('');
+  const [insightLoading, setInsightLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchInsight = async () => {
+      const apiKey = await getSetting('apiKey');
+      if (!apiKey) return;
+      
+      setInsightLoading(true);
+      try {
+        const dietContext = dietEntries.slice(0, 7).map((d: any) => `Date: ${d.date}, Calories: ${d.calories}, Hydration: ${d.hydration}ml, Fasting: ${d.isFasting}`).join('; ');
+        
+        const promptContext = `Profile: Height ${profile.height}, Weight ${profile.weight}, Goal: ${profile.primaryGoal}. Fasting Mode: ${profile.isFasting}. Diet History: ${dietContext}`;
+        
+        const systemPrompt = `You are an elite, professional doctor and life coach. Analyze the provided diet history, water intake, and fasting status. Give strict, actionable advice on whether the current meal plan helps reduce belly fat and optimize health. Keep it under 4 sentences.\n\nContext: ${promptContext}`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: systemPrompt }] }]
+          })
+        });
+
+        if (!response.ok) throw new Error('API Error');
+        const data = await response.json();
+        setAiInsight(data.candidates?.[0]?.content?.parts?.[0]?.text || 'No insights generated.');
+      } catch (err) {
+        setAiInsight('Failed to connect to AI Coach. Check your API Key.');
+      } finally {
+        setInsightLoading(false);
+      }
+    };
+
+    fetchInsight();
+  }, [dietEntries, profile]);
 
 
   return (
@@ -59,6 +98,31 @@ export function DashboardModule() {
         <div>
           <p className="text-[12px] font-bold text-on-surface-variant uppercase tracking-widest">Workout Routines</p>
           <p className="text-2xl font-bold text-on-surface">{sportsExercises.length}</p>
+        </div>
+      </div>
+
+      {/* Pro Coach AI Insight */}
+      <div className="lg:col-span-12 bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-[32px] p-8 glass-card relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors duration-700"></div>
+        <div className="flex gap-6 items-start relative z-10">
+          <div className="w-16 h-16 rounded-2xl bg-primary/20 flex flex-shrink-0 items-center justify-center text-primary border border-primary/30 shadow-[0_0_15px_rgba(255,180,166,0.3)]">
+            <Sparkles className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-on-surface flex items-center gap-2 mb-2">
+              Pro Coach Insight
+            </h3>
+            {insightLoading ? (
+               <div className="flex items-center gap-2 text-on-surface-variant">
+                 <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                 <span>Analyzing your biological metrics...</span>
+               </div>
+            ) : (
+               <p className="text-on-surface-variant text-base leading-relaxed">
+                 {aiInsight || "Add your API Key in Settings to enable Pro Coach insights."}
+               </p>
+            )}
+          </div>
         </div>
       </div>
 
