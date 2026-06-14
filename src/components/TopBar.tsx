@@ -45,7 +45,7 @@ export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSea
               setShowNotifications(!showNotifications);
               if (hasUnread) clearUnread();
             }} 
-            className="relative w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5"
+            className="relative shrink-0 aspect-square min-w-[40px] w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5"
           >
             <Bell className="w-5 h-5" />
             {hasUnread && (
@@ -81,13 +81,13 @@ export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSea
           )}
         </div>
 
-        <button onClick={onOpenSettings} className="w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5">
+        <button onClick={onOpenSettings} className="shrink-0 aspect-square min-w-[40px] w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5">
           <Settings className="w-5 h-5" />
         </button>
 
         <button 
           onClick={() => setShowProfile(true)}
-          className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#651fff] to-[#00e676] p-[2px] shadow-[0_0_15px_rgba(101,31,255,0.4)] hover:scale-105 transition-transform"
+          className="shrink-0 aspect-square min-w-[40px] w-10 h-10 rounded-full bg-gradient-to-tr from-[#651fff] to-[#00e676] p-[2px] shadow-[0_0_15px_rgba(101,31,255,0.4)] hover:scale-105 transition-transform"
         >
           <div className="w-full h-full rounded-full bg-surface/80 backdrop-blur-md flex items-center justify-center overflow-hidden border border-white/20">
             {profile.avatarUrl ? (

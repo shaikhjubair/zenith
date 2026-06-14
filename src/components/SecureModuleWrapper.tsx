@@ -19,36 +19,47 @@ const EmojiLock = ({ status }: { status: 'idle' | 'success' | 'error' }) => {
       strokeLinecap="round" 
       strokeLinejoin="round" 
       className="w-10 h-10"
-      animate={status === 'error' ? { x: [-5, 5, -5, 5, 0] } : {}}
-      transition={{ duration: 0.4 }}
+      animate={
+        status === 'error' 
+          ? { x: [-15, 15, -10, 10, 0], filter: 'drop-shadow(0 0 15px rgba(239,68,68,0.8))' } 
+          : status === 'success'
+            ? { y: [-5, 5, -5], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } }
+            : {}
+      }
+      transition={status === 'error' ? { duration: 0.4 } : { type: "spring", stiffness: 300, damping: 15 }}
     >
       {/* Lock Shackle */}
       <motion.path 
         d="M7 11V7a5 5 0 0 1 10 0v4" 
         animate={status === 'success' ? { d: "M7 11V7a5 5 0 0 1 10 0" } : { d: "M7 11V7a5 5 0 0 1 10 0v4" }}
+        transition={{ type: "spring", stiffness: 300, damping: 15 }}
       />
       {/* Lock Body */}
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <rect x="3" y="11" width="18" height="11" rx="3" ry="3" />
       
       {/* Eyes */}
       <motion.path 
         d="M8 15h.01M16 15h.01" 
         strokeWidth="3"
+        strokeLinecap="round"
         animate={
-          status === 'success' ? { d: "M7 15q1 -2 2 0 M15 15q1 -2 2 0", strokeWidth: 1.5 } : 
-          status === 'error' ? { d: "M7 14l2 1 M17 14l-2 1", strokeWidth: 2 } : 
+          status === 'success' ? { d: "M7 15q1.5 -2.5 3 0 M14 15q1.5 -2.5 3 0", strokeWidth: 1.5 } : 
+          status === 'error' ? { d: "M7 14.5l2 1 M17 14.5l-2 1", strokeWidth: 2.5 } : 
           { d: "M8 15h.01M16 15h.01", strokeWidth: 3 }
         }
+        transition={{ type: "spring", stiffness: 300, damping: 15 }}
       />
       
       {/* Keyhole / Mouth */}
       <motion.path 
-        d="M12 17v2"
+        d="M12 17v2.5"
+        strokeLinecap="round"
         animate={
-          status === 'success' ? { d: "M10 18q2 2 4 0" } : 
-          status === 'error' ? { d: "M10 19q2 -2 4 0" } : 
-          { d: "M12 17v2" }
+          status === 'success' ? { d: "M10 17.5q2 2.5 4 0" } : 
+          status === 'error' ? { d: "M10 19.5q2 -2.5 4 0" } : 
+          { d: "M12 17v2.5" }
         }
+        transition={{ type: "spring", stiffness: 300, damping: 15 }}
       />
     </motion.svg>
   );
@@ -113,8 +124,8 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
 
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
-              animate={authStatus === 'error' ? { opacity: 1, scale: 1, x: [-10, 10, -10, 10, 0] } : { opacity: 1, scale: 1, x: 0 }}
-              transition={{ duration: 0.4 }}
+              animate={authStatus === 'error' ? { opacity: 1, scale: 1, x: [-15, 15, -10, 10, 0] } : { opacity: 1, scale: 1, x: 0 }}
+              transition={authStatus === 'error' ? { duration: 0.4 } : { type: "spring", stiffness: 300, damping: 15 }}
               className="relative z-10 bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] p-8 flex flex-col items-center justify-center shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)] w-full max-w-sm min-h-[400px]"
             >
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-[60px] rounded-full pointer-events-none"></div>

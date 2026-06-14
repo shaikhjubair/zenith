@@ -76,7 +76,7 @@ const TimerWidget = () => {
          </div>
       )}
 
-      <div className="text-[64px] font-bold text-primary font-mono tracking-tight leading-none mb-6">
+      <div className="text-6xl md:text-[64px] font-bold text-primary font-mono tracking-tight leading-none mb-6 break-all">
         {formatTime(timerSeconds)}
       </div>
 
@@ -172,7 +172,7 @@ export function StudyModule() {
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div>
-            <h2 className="text-[40px] font-bold text-on-surface leading-none tracking-tight">{activeCourse.title}</h2>
+            <h2 className="text-4xl md:text-[40px] font-bold text-on-surface leading-none tracking-tight break-words">{activeCourse.title}</h2>
             <p className="text-primary mt-1">{activeCourse.subtitle}</p>
           </div>
         </div>
@@ -301,7 +301,7 @@ export function StudyModule() {
   };
 
   return (
-    <div className="relative overflow-x-hidden overflow-y-auto z-0 h-full w-full max-w-[100vw] -m-8 p-8 flex-1 flex flex-col">
+    <div className="relative overflow-x-hidden overflow-y-auto box-border z-0 h-full w-full max-w-full -m-4 md:-m-8 p-4 md:p-8 flex-1 flex flex-col">
       <div className="absolute inset-0 bg-[url('/study_bg.png')] bg-cover bg-center mix-blend-overlay opacity-50 pointer-events-none z-0"></div>
       <div className="absolute inset-0 bg-black/60 pointer-events-none z-0"></div>
 
@@ -312,7 +312,7 @@ export function StudyModule() {
         {activeCourse ? renderActiveCourse() : (
           <>
             <div className="col-span-12 relative z-10 mb-2">
-              <h2 className="text-[64px] font-bold text-on-surface tracking-tight mb-2 leading-none">Deep Work</h2>
+              <h2 className="text-5xl md:text-[64px] font-bold text-on-surface tracking-tight mb-2 leading-none break-words">Deep Work</h2>
               <p className="text-[18px] text-primary">10-Hour Intensive Routine Active</p>
             </div>
 
