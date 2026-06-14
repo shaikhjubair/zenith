@@ -126,9 +126,13 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
               initial={{ opacity: 0, scale: 0.95 }}
               animate={authStatus === 'error' ? { opacity: 1, scale: 1, x: [-15, 15, -10, 10, 0] } : { opacity: 1, scale: 1, x: 0 }}
               transition={authStatus === 'error' ? { duration: 0.4 } : { type: "spring", stiffness: 300, damping: 15 }}
-              className="relative z-10 bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] p-6 md:p-8 flex flex-col items-center justify-center shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)] w-[calc(100%-2rem)] max-w-sm"
+              className={`relative z-10 p-6 md:p-8 flex flex-col items-center justify-center w-[calc(100%-2rem)] max-w-sm transition-all duration-500 ${
+                authStatus === 'success'
+                  ? 'bg-transparent border-transparent shadow-none'
+                  : 'bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)]'
+              }`}
             >
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-[60px] rounded-full pointer-events-none"></div>
+              <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-[60px] rounded-full pointer-events-none transition-opacity duration-500 ${authStatus === 'success' ? 'opacity-0' : 'opacity-100'}`}></div>
 
               <motion.div 
                 animate={
