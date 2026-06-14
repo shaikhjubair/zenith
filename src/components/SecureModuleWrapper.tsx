@@ -114,7 +114,7 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center -m-8 p-8"
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center w-full min-h-[80vh] md:min-h-full my-auto p-4 md:p-8"
           >
             {/* Background Aurora Blur for Lock Screen */}
             <div className="absolute inset-0 bg-background/80 backdrop-blur-3xl z-0 flex items-center justify-center pointer-events-none">

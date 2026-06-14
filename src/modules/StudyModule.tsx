@@ -302,8 +302,11 @@ export function StudyModule() {
 
   return (
     <div className="relative overflow-x-hidden overflow-y-auto box-border z-0 h-full w-full flex-1 flex flex-col">
-      <div className="absolute inset-0 bg-[url('/study_bg.png')] bg-cover bg-center mix-blend-overlay opacity-50 pointer-events-none z-0"></div>
-      <div className="absolute inset-0 bg-black/60 pointer-events-none z-0"></div>
+      <div 
+        className="fixed inset-0 bg-cover bg-center mix-blend-overlay opacity-40 pointer-events-none z-[-2]"
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=2560&auto=format&fit=crop')" }}
+      ></div>
+      <div className="fixed inset-0 bg-black/60 pointer-events-none z-[-1]"></div>
 
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} 
