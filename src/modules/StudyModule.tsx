@@ -76,7 +76,7 @@ const TimerWidget = () => {
          </div>
       )}
 
-      <div className="text-6xl md:text-[64px] font-bold text-primary font-mono tracking-tight leading-none mb-6 break-all">
+      <div className="text-5xl sm:text-6xl md:text-[64px] font-bold text-primary font-mono tracking-tight leading-none mb-6 break-all">
         {formatTime(timerSeconds)}
       </div>
 
@@ -178,12 +178,12 @@ export function StudyModule() {
         </div>
 
         <div className="bg-surface-container/30 rounded-[32px] overflow-hidden border border-white/5 glass-edge shadow-lg flex flex-col w-full">
-          <div className="flex border-b border-white/5 w-full">
+          <div className="flex border-b border-white/5 w-full overflow-x-auto">
             {['topics', 'notes', 'exams'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className={`flex-1 py-4 text-center text-sm font-medium uppercase tracking-widest transition-colors ${
+                className={`shrink-0 px-4 flex-1 py-4 text-center text-sm font-medium uppercase tracking-widest transition-colors ${
                   activeTab === tab ? 'bg-primary/10 text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:bg-white/5 hover:text-on-surface'
                 }`}
               >
@@ -301,13 +301,13 @@ export function StudyModule() {
   };
 
   return (
-    <div className="relative overflow-x-hidden overflow-y-auto box-border z-0 h-full w-full max-w-full -m-4 md:-m-8 p-4 md:p-8 flex-1 flex flex-col">
+    <div className="relative overflow-x-hidden overflow-y-auto box-border z-0 h-full w-full flex-1 flex flex-col">
       <div className="absolute inset-0 bg-[url('/study_bg.png')] bg-cover bg-center mix-blend-overlay opacity-50 pointer-events-none z-0"></div>
       <div className="absolute inset-0 bg-black/60 pointer-events-none z-0"></div>
 
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} 
-        className="max-w-6xl w-full mx-auto grid grid-cols-12 gap-8 relative z-10 flex-1"
+        className="max-w-6xl w-full mx-auto grid grid-cols-12 gap-4 md:gap-8 relative z-10 flex-1"
       >
         {activeCourse ? renderActiveCourse() : (
           <>
