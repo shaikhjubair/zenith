@@ -1,11 +1,58 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, Unlock, X, ShieldCheck } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface SecureModuleWrapperProps {
   children: React.ReactNode;
   moduleName: string;
 }
+
+const EmojiLock = ({ status }: { status: 'idle' | 'success' | 'error' }) => {
+  const color = status === 'success' ? '#22c55e' : status === 'error' ? '#ef4444' : 'currentColor';
+  
+  return (
+    <motion.svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke={color} 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className="w-10 h-10"
+      animate={status === 'error' ? { x: [-5, 5, -5, 5, 0] } : {}}
+      transition={{ duration: 0.4 }}
+    >
+      {/* Lock Shackle */}
+      <motion.path 
+        d="M7 11V7a5 5 0 0 1 10 0v4" 
+        animate={status === 'success' ? { d: "M7 11V7a5 5 0 0 1 10 0" } : { d: "M7 11V7a5 5 0 0 1 10 0v4" }}
+      />
+      {/* Lock Body */}
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      
+      {/* Eyes */}
+      <motion.path 
+        d="M8 15h.01M16 15h.01" 
+        strokeWidth="3"
+        animate={
+          status === 'success' ? { d: "M7 15q1 -2 2 0 M15 15q1 -2 2 0", strokeWidth: 1.5 } : 
+          status === 'error' ? { d: "M7 14l2 1 M17 14l-2 1", strokeWidth: 2 } : 
+          { d: "M8 15h.01M16 15h.01", strokeWidth: 3 }
+        }
+      />
+      
+      {/* Keyhole / Mouth */}
+      <motion.path 
+        d="M12 17v2"
+        animate={
+          status === 'success' ? { d: "M10 18q2 2 4 0" } : 
+          status === 'error' ? { d: "M10 19q2 -2 4 0" } : 
+          { d: "M12 17v2" }
+        }
+      />
+    </motion.svg>
+  );
+};
 
 export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrapperProps) {
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -25,7 +72,7 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
         setIsChecking(true);
         if (newPin === CORRECT_PIN) {
           setAuthStatus('success');
-          setTimeout(() => setIsUnlocked(true), 1500);
+          setTimeout(() => setIsUnlocked(true), 2000);
         } else {
           setAuthStatus('error');
           if (navigator.vibrate) navigator.vibrate(200);
@@ -68,12 +115,9 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
               initial={{ opacity: 0, scale: 0.95 }}
               animate={authStatus === 'error' ? { opacity: 1, scale: 1, x: [-10, 10, -10, 10, 0] } : { opacity: 1, scale: 1, x: 0 }}
               transition={{ duration: 0.4 }}
-              className="relative z-10 bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] p-10 flex flex-col items-center justify-center shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)] w-full max-w-sm min-h-[550px]"
+              className="relative z-10 bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] p-8 flex flex-col items-center justify-center shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)] w-full max-w-sm min-h-[400px]"
             >
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-[60px] rounded-full pointer-events-none"></div>
-
-              {authStatus === 'success' && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-4xl mb-4 drop-shadow-[0_0_15px_rgba(34,197,94,0.8)] z-50 absolute top-20">😊</motion.div>}
-              {authStatus === 'error' && <motion.div animate={{ x: [-5, 5, -5, 5, 0] }} className="text-4xl mb-4 z-50 absolute top-20">😔</motion.div>}
 
               <motion.div 
                 animate={
@@ -86,26 +130,22 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
                         : {}
                 }
                 transition={{ duration: authStatus === 'success' || isChecking ? 0.5 : 0.4 }}
-                className={`w-16 h-16 rounded-[20px] bg-gradient-to-br flex items-center justify-center shadow-[0_0_40px_rgba(255,180,166,0.15),inset_1px_1px_0px_rgba(255,255,255,0.2)] border z-50 ${
-                  authStatus === 'success' ? 'from-green-500/30 to-surface/10 border-green-500/50' : 
-                  authStatus === 'error' ? 'from-error/30 to-surface/10 border-error/50' : 
-                  'from-primary/30 to-surface/10 border-primary/30'
+                className={`w-20 h-20 rounded-[20px] bg-gradient-to-br flex items-center justify-center shadow-[0_0_40px_rgba(255,180,166,0.15),inset_1px_1px_0px_rgba(255,255,255,0.2)] border z-50 ${
+                  authStatus === 'success' ? 'from-green-500/30 to-surface/10 border-green-500/50 text-green-500' : 
+                  authStatus === 'error' ? 'from-error/30 to-surface/10 border-error/50 text-error' : 
+                  'from-primary/30 to-surface/10 border-primary/30 text-primary'
                 }`}
               >
-                {authStatus === 'success' ? (
-                  <Unlock className="w-8 h-8 text-green-500" strokeWidth={1.5} />
-                ) : (
-                  <Lock className={`w-8 h-8 ${authStatus === 'error' ? 'text-error' : 'text-primary'}`} strokeWidth={1.5} />
-                )}
+                <EmojiLock status={authStatus} />
               </motion.div>
 
         <AnimatePresence>
           {!isChecking && (
             <motion.div 
               initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto', marginTop: 24 }}
-              exit={{ opacity: 0, height: 0, marginTop: 0 }}
-              className="w-full flex flex-col items-center overflow-hidden"
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="w-full flex flex-col items-center overflow-hidden pt-6"
             >
               <h2 className="text-[24px] font-bold text-on-surface mb-2">{moduleName} Locked</h2>
               <p className="text-[14px] text-on-surface-variant text-center mb-8">

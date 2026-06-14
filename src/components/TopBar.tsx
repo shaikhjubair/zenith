@@ -91,7 +91,7 @@ export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSea
         >
           <div className="w-full h-full rounded-full bg-surface/80 backdrop-blur-md flex items-center justify-center overflow-hidden border border-white/20">
             {profile.avatarUrl ? (
-              <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              <img src={profile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover aspect-square shrink-0" />
             ) : (
               <span className="text-[14px] font-bold text-transparent bg-clip-text bg-gradient-to-tr from-[#651fff] to-[#00e676]">SJ</span>
             )}

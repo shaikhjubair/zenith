@@ -69,9 +69,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Profile Picture</label>
               <div className="flex items-center gap-4">
                 {formData.avatarUrl && (
-                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-white/20">
-                    <img src={formData.avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
-                  </div>
+                  <img src={formData.avatarUrl} alt="Avatar Preview" className="w-10 h-10 rounded-full object-cover aspect-square shrink-0" />
                 )}
                 <input
                   type="file"
