@@ -68,13 +68,13 @@ export default function App() {
                 }}
               />
               
-              <main className="flex flex-1 w-full h-full block relative z-10">
+              <main className="flex flex-1 w-full h-full block relative z-10 max-w-[100vw] overflow-x-hidden">
                 <motion.div
                   key={activeModule}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4 }}
-                  className="flex-1 flex flex-col w-full h-full min-h-screen pt-24 px-8 pb-12 overflow-y-auto block"
+                  className="flex-1 flex flex-col w-full h-full min-h-screen pt-24 px-4 md:px-8 pb-12 overflow-y-auto overflow-x-hidden block"
                 >
                   {renderModule()}
                 </motion.div>

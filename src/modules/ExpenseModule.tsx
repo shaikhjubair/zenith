@@ -1,10 +1,38 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { X, Plus, Landmark, TrendingDown, Handshake, ShoppingCart, Briefcase, Zap, Car, UtensilsCrossed, Film, ArrowUp, Receipt, Settings2 } from 'lucide-react';
+import { X, Plus, Landmark, TrendingDown, Handshake, ShoppingCart, Briefcase, Zap, Car, UtensilsCrossed, Film, ArrowUp, Receipt, Settings2, Sparkles } from 'lucide-react';
 import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useStore } from '../useStore';
 import { STORES } from '../db';
+
+const fetchGemini = async (prompt: string, key: string) => {
+  let model = 'gemini-1.5-flash';
+  let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  let response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+  });
+  if (!response.ok) {
+    let errorData: any = {};
+    try { errorData = await response.json(); } catch(e) {}
+    if (errorData.error?.code === 404 || response.status === 404) {
+      model = 'gemini-1.5-pro';
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+      });
+      if (!response.ok) throw new Error(await response.text());
+    } else {
+      throw new Error(JSON.stringify(errorData));
+    }
+  }
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+};
 
 interface Expense {
   id?: number;
@@ -223,11 +251,15 @@ export function ExpenseModule() {
   const [showChartModal, setShowChartModal] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
+  const [aiInsight, setAiInsight] = useState('');
+  const [insightLoading, setInsightLoading] = useState(false);
+
   // Compute summary values from live data
-  const { totalBalance, monthlySpend, lentOut } = useMemo(() => {
+  const { totalBalance, monthlySpend, lentOut, p2p } = useMemo(() => {
     let total = 0;
     let spend = 0;
     let lent = 0;
+    const p2pItems: any[] = [];
     for (const e of expenses) {
       if (e.type === 'income') {
         total += Math.abs(e.amount);
@@ -239,10 +271,31 @@ export function ExpenseModule() {
       }
       if (e.type === 'p2p') {
         lent += Math.abs(e.amount);
+        p2pItems.push(e);
       }
     }
-    return { totalBalance: total, monthlySpend: spend, lentOut: lent };
+    return { totalBalance: total, monthlySpend: spend, lentOut: lent, p2p: p2pItems };
   }, [expenses]);
+
+  const generateInsight = async () => {
+    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    if (!apiKey) {
+      setAiInsight('Please add your API Key in Settings to enable the AI Financial Advisor.');
+      return;
+    }
+    setInsightLoading(true);
+    try {
+      const p2pContext = p2p.map((t: any) => `${t.title}: ${t.amount} BDT`).join(', ');
+      const systemPrompt = `You are an elite financial advisor. The user's fixed monthly expenses are: Rent 2667, Lift 250, WiFi 200, Maid 650, Dustbin 30, Electricity ~400, Gas ~250, Cycle Garage 250 (Total: 4747 BDT). Calculate their TRUE remaining disposable income from their current balance (${totalBalance} BDT) after deducting these fixed costs. Give them a strict daily spending limit for the rest of the month (assume 30 days total, adjust for days left if you can, otherwise just divide by 30). Explicitly list who owes them money or who they owe based on P2P transactions (${p2pContext || 'None'}). Be concise and highly analytical.`;
+      
+      const insight = await fetchGemini(systemPrompt, apiKey);
+      setAiInsight(insight);
+    } catch (err: any) {
+      setAiInsight(`Error: ${err.message}`);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
 
   const totalFmt = formatCurrency(totalBalance);
   const spendFmt = formatCurrency(monthlySpend);
@@ -346,7 +399,39 @@ export function ExpenseModule() {
              </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+        {/* AI Advisor Card */}
+        <div className="bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-[32px] p-6 glass-card relative overflow-hidden group mb-6 z-10">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors duration-700"></div>
+          <div className="flex gap-4 items-start relative z-10 flex-col md:flex-row">
+            <div className="w-12 h-12 rounded-2xl bg-primary/20 flex flex-shrink-0 items-center justify-center text-primary border border-primary/30 shadow-[0_0_15px_rgba(255,180,166,0.3)]">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div className="flex-1 w-full">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xl font-bold text-on-surface">Financial Advisor</h3>
+                <button 
+                  onClick={generateInsight}
+                  disabled={insightLoading}
+                  className="bg-primary/20 text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-primary/30 transition-colors border border-primary/30 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {insightLoading ? 'Analyzing...' : 'Generate Insight'}
+                </button>
+              </div>
+              {insightLoading ? (
+                <div className="flex items-center gap-2 text-on-surface-variant text-sm mt-2">
+                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                  <span>Crunching numbers and calculating liquidity...</span>
+                </div>
+              ) : aiInsight ? (
+                <p className="text-on-surface-variant text-sm leading-relaxed mt-2 whitespace-pre-wrap">{aiInsight}</p>
+              ) : (
+                <p className="text-on-surface-variant/60 text-sm mt-2">Click Generate Insight for a strict financial breakdown and daily spending limit.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
               <div className="glass-card rounded-2xl p-6 mesh-income relative overflow-hidden group hover:border-[#00e676]/50 transition-colors shadow-lg bg-black/20">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-[#00e676]/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
                   <div className="flex justify-between items-start mb-4 relative z-10">

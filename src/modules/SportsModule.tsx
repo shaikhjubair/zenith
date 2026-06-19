@@ -1,10 +1,39 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Accessibility, Shell, Plus, X, Loader2, Play, Square, AlertTriangle, CheckCircle2, Circle, CalendarX } from 'lucide-react';
+import { Accessibility, Shell, Plus, X, Loader2, Play, Square, AlertTriangle, CheckCircle2, Circle, CalendarX, Sparkles } from 'lucide-react';
 import { useStore } from '../useStore';
 import { STORES } from '../db';
 import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { useUserProfile } from '../context/UserProfileContext';
+
+const fetchGemini = async (prompt: string, key: string) => {
+  let model = 'gemini-1.5-flash';
+  let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  let response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+  });
+  if (!response.ok) {
+    let errorData: any = {};
+    try { errorData = await response.json(); } catch(e) {}
+    if (errorData.error?.code === 404 || response.status === 404) {
+      model = 'gemini-1.5-pro';
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+      });
+      if (!response.ok) throw new Error(await response.text());
+    } else {
+      throw new Error(JSON.stringify(errorData));
+    }
+  }
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+};
 
 interface ExerciseSet {
   setNum: number;
@@ -72,6 +101,10 @@ const computeIntensityForSet = (s: ExerciseSet, isTimed: boolean) => {
 
 export function SportsModule() {
   const [exercises, actions, loading] = useStore<Exercise>(STORES.sportsExercises);
+  const { profile } = useUserProfile();
+  
+  const [aiInsight, setAiInsight] = useState('');
+  const [insightLoading, setInsightLoading] = useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
   
   // UX Enhancements States
@@ -274,6 +307,43 @@ export function SportsModule() {
 
   const todaysStats = useMemo(() => computeStatsForDay(todaysExercises), [todaysExercises]);
 
+  const handleTodaysRoutine = async () => {
+    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    if (!apiKey) {
+      setAiInsight('Please add your API Key in Settings to enable the AI Coach.');
+      return;
+    }
+    setInsightLoading(true);
+    try {
+      const systemPrompt = `You are a strict fitness coach. Goal: Core/Belly fat reduction and muscle building (Push-ups, Squats, etc.). Fasting Mode is ${profile.isFasting ? 'ON' : 'OFF'}. If Fasting is ON, strictly recommend a lighter, energy-conserving routine close to Iftar time. If Fasting is OFF, push them hard. Provide a concise bulleted list of exercises to do today.`;
+      const insight = await fetchGemini(systemPrompt, apiKey);
+      setAiInsight(insight);
+    } catch (err: any) {
+      setAiInsight(`Error: ${err.message}`);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
+  const handleReviewPerformance = async () => {
+    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    if (!apiKey) {
+      setAiInsight('Please add your API Key in Settings to enable the AI Coach.');
+      return;
+    }
+    setInsightLoading(true);
+    try {
+      const exerciseContext = todaysExercises.map((e: any) => `${e.name} (${e.sets.filter((s: any) => s.done).length} sets done)`).join(', ');
+      const systemPrompt = `You are a strict fitness coach. Fasting Mode is ${profile.isFasting ? 'ON' : 'OFF'}. Today's logged exercises: ${exerciseContext || 'None logged'}. Volume load: ${todaysStats.volume}kg. Tell them how well they did, if they hit enough volume/intensity, and give harsh but motivating feedback for tomorrow.`;
+      const insight = await fetchGemini(systemPrompt, apiKey);
+      setAiInsight(insight);
+    } catch (err: any) {
+      setAiInsight(`Error: ${err.message}`);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 items-center justify-center">
@@ -284,7 +354,7 @@ export function SportsModule() {
   }
 
   return (
-    <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 relative pb-20 z-0">
+    <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 relative pb-20 z-0 overflow-x-hidden">
       
       {/* Abstract Mesh Background */}
       <div className="absolute top-0 right-10 w-[500px] h-[500px] bg-tertiary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
@@ -295,7 +365,48 @@ export function SportsModule() {
         <h2 className="text-[32px] font-bold text-primary tracking-tight leading-none">Sports & Action</h2>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1">
+      {/* AI Coach Card */}
+      <div className="bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-[32px] p-6 glass-card relative overflow-hidden group z-10">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors duration-700"></div>
+        <div className="flex gap-4 items-start relative z-10 flex-col md:flex-row">
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex flex-shrink-0 items-center justify-center text-primary border border-primary/30 shadow-[0_0_15px_rgba(255,180,166,0.3)]">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div className="flex-1 w-full">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+              <h3 className="text-xl font-bold text-on-surface">AI Fitness Coach</h3>
+              <div className="flex gap-3 w-full md:w-auto">
+                <button 
+                  onClick={handleTodaysRoutine}
+                  disabled={insightLoading}
+                  className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-primary/20 transition-colors border border-primary/20 disabled:opacity-50 whitespace-nowrap flex-1 md:flex-none"
+                >
+                  Today's Routine
+                </button>
+                <button 
+                  onClick={handleReviewPerformance}
+                  disabled={insightLoading}
+                  className="bg-primary/20 text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-primary/30 transition-colors border border-primary/30 disabled:opacity-50 whitespace-nowrap flex-1 md:flex-none"
+                >
+                  Review Performance
+                </button>
+              </div>
+            </div>
+            {insightLoading ? (
+              <div className="flex items-center gap-2 text-on-surface-variant text-sm mt-2">
+                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                <span>Analyzing muscle fatigue and generating routine...</span>
+              </div>
+            ) : aiInsight ? (
+              <p className="text-on-surface-variant text-sm leading-relaxed mt-2 whitespace-pre-wrap">{aiInsight}</p>
+            ) : (
+              <p className="text-on-surface-variant/60 text-sm mt-2">Generate a harsh, volume-heavy routine or review your daily stats.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
         <div className="lg:col-span-8 glass-card rounded-[24px] p-8 flex flex-col justify-between relative overflow-hidden group shadow-lg border border-white/10">
           <div className="absolute inset-0 bg-[url('/fitness_bg.png')] bg-cover bg-center mix-blend-overlay opacity-30 pointer-events-none z-0"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-50 pointer-events-none z-0"></div>

@@ -1,10 +1,40 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { CalendarDays, Sun, Heart, Circle, Users, BookMarked, Plus, Minus, X, Clock, MapPin, CheckCircle2, Moon, BookOpen, UtensilsCrossed, CalendarX } from 'lucide-react';
+import { CalendarDays, Sun, Heart, Circle, Users, BookMarked, Plus, Minus, X, Clock, MapPin, CheckCircle2, Moon, BookOpen, UtensilsCrossed, CalendarX, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coordinates, CalculationMethod, PrayerTimes, Madhab } from 'adhan';
 import { useStore } from '../useStore';
 import { STORES } from '../db';
 import { FormModal } from '../components/FormModal';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { useUserProfile } from '../context/UserProfileContext';
+
+const fetchGemini = async (prompt: string, key: string) => {
+  let model = 'gemini-1.5-flash';
+  let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  let response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+  });
+  if (!response.ok) {
+    let errorData: any = {};
+    try { errorData = await response.json(); } catch(e) {}
+    if (errorData.error?.code === 404 || response.status === 404) {
+      model = 'gemini-1.5-pro';
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+      });
+      if (!response.ok) throw new Error(await response.text());
+    } else {
+      throw new Error(JSON.stringify(errorData));
+    }
+  }
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+};
 
 interface PrayerLog {
   id?: number;
@@ -77,11 +107,16 @@ const SACRED_TEXT_FIELDS = [
 ] as const;
 
 export function SpiritualModule() {
-  const [prayers, actions, loading] = useStore<PrayerLog>(STORES.spiritualPrayers);
-  const [literature, litActions, litLoading] = useStore<LiteratureLog>(STORES.spiritualLiterature);
+  const [logs, logActions, logsLoading] = useStore<PrayerLog>(STORES.prayerLogs);
+  const [literature, litActions, litLoading] = useStore<LiteratureLog>(STORES.literatureLogs);
+  const { profile } = useUserProfile();
+
+  const [aiInsight, setAiInsight] = useState('');
+  const [insightLoading, setInsightLoading] = useState(false);
   
   const [showReadingModal, setShowReadingModal] = useState(false);
   const [selectedDayInfo, setSelectedDayInfo] = useState<PrayerLog | null>(null);
+  const [litToDelete, setLitToDelete] = useState<number | null>(null);
   
   const [district, setDistrict] = useState('Dhaka');
   const [isFasting, setIsFasting] = useState(false);
@@ -96,15 +131,15 @@ export function SpiritualModule() {
   const todayIso = useMemo(() => getBDIso(), [now]);
 
   const todayEntry = useMemo(
-    () => prayers.find((p) => p.date === todayIso),
-    [prayers, todayIso]
+    () => logs.find((p) => p.date === todayIso),
+    [logs, todayIso]
   );
 
   useEffect(() => {
-    if (!loading && prayers.length >= 0 && !todayEntry) {
-      actions.add(DEFAULT_ENTRY(todayIso));
+    if (!logsLoading && logs.length >= 0 && !todayEntry) {
+      logActions.add(DEFAULT_ENTRY(todayIso));
     }
-  }, [loading, todayEntry, prayers.length, actions, todayIso]);
+  }, [logsLoading, todayEntry, logs.length, logActions, todayIso]);
 
   const handleCloseReadingModal = useCallback(() => setShowReadingModal(false), []);
   
@@ -121,7 +156,7 @@ export function SpiritualModule() {
 
   const togglePrayer = (prayerName: keyof Omit<PrayerLog, 'id' | 'date'>) => {
     if (todayEntry && todayEntry.id) {
-      actions.update(todayEntry.id, { [prayerName]: !todayEntry[prayerName] });
+      logActions.update(todayEntry.id, { [prayerName]: !todayEntry[prayerName] });
     }
   };
 
@@ -131,6 +166,7 @@ export function SpiritualModule() {
     const params = CalculationMethod.Karachi();
     params.madhab = Madhab.Hanafi;
     const pt = new PrayerTimes(coords, now, params);
+    const tomorrowPt = new PrayerTimes(coords, new Date(now.getTime() + 86400000), params);
 
     const format = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Dhaka' });
 
@@ -152,8 +188,6 @@ export function SpiritualModule() {
       activeWaqt = 'Maghrib'; nextPrayerName = 'Isha'; nextPrayerTime = pt.isha;
     } else if (currentMs >= pt.isha.getTime()) {
       activeWaqt = 'Isha / Tahajjud'; 
-      // Next is Fajr tomorrow
-      const tomorrowPt = new PrayerTimes(coords, new Date(now.getTime() + 86400000), params);
       nextPrayerName = 'Fajr'; nextPrayerTime = tomorrowPt.fajr;
     }
 
@@ -181,13 +215,25 @@ export function SpiritualModule() {
       subheSadiq: format(pt.fajr),
       sunrise: format(pt.sunrise),
       fajr: format(pt.fajr),
+      fajrEnd: format(pt.sunrise),
       dhuhr: format(pt.dhuhr),
+      dhuhrEnd: format(pt.asr),
       asr: format(pt.asr),
+      asrEnd: format(pt.maghrib),
       maghrib: format(pt.maghrib),
+      maghribEnd: format(pt.isha),
       isha: format(pt.isha),
+      ishaEnd: format(tomorrowPt.fajr),
       activeWaqt, nextPrayerName, countdown, iftarCountdown
     };
   }, [district, now, isFasting]);
+
+  // Literature stats
+  const totalCompleted = literature.filter(l => l.isCompleted || l.current >= l.total).length;
+  const activeLiterature = literature.filter(l => !l.isCompleted && l.current < l.total);
+  const activeProgressPct = activeLiterature.length > 0 
+    ? activeLiterature.reduce((acc, l) => acc + (l.current / l.total), 0) / activeLiterature.length * 100
+    : 0;
 
   // Dynamic Heatmap Data (Current Month)
   const currentMonthDays = useMemo(() => {
@@ -203,7 +249,7 @@ export function SpiritualModule() {
       const cellDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), i);
       const dateStr = getLocalIso(cellDate);
       
-      const entry = prayers.find(p => p.date === dateStr);
+      const entry = logs.find(p => p.date === dateStr);
       let intensity = 0;
       if (entry) {
         const count = [
@@ -219,9 +265,9 @@ export function SpiritualModule() {
       data.push({ date: dateStr, intensity, log: entry });
     }
     return data;
-  }, [prayers, currentMonthDays, todayIso]);
+  }, [logs, currentMonthDays, todayIso]);
 
-  if (loading || litLoading) {
+  if (logsLoading || litLoading) {
     return (
       <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 items-center justify-center">
         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -230,11 +276,11 @@ export function SpiritualModule() {
   }
 
   const obligatoryPrayers = [
-    { key: 'fajr', label: 'Fajr', jamaatKey: 'fajrJamaat', time: prayerData.fajr },
-    { key: 'dhuhr', label: 'Dhuhr', jamaatKey: 'dhuhrJamaat', time: prayerData.dhuhr },
-    { key: 'asr', label: 'Asr', jamaatKey: 'asrJamaat', time: prayerData.asr },
-    { key: 'maghrib', label: 'Maghrib', jamaatKey: 'maghribJamaat', time: prayerData.maghrib },
-    { key: 'isha', label: 'Isha', jamaatKey: 'ishaJamaat', time: prayerData.isha },
+    { key: 'fajr', label: 'Fajr', jamaatKey: 'fajrJamaat', time: prayerData.fajr, endTime: prayerData.fajrEnd },
+    { key: 'dhuhr', label: 'Dhuhr', jamaatKey: 'dhuhrJamaat', time: prayerData.dhuhr, endTime: prayerData.dhuhrEnd },
+    { key: 'asr', label: 'Asr', jamaatKey: 'asrJamaat', time: prayerData.asr, endTime: prayerData.asrEnd },
+    { key: 'maghrib', label: 'Maghrib', jamaatKey: 'maghribJamaat', time: prayerData.maghrib, endTime: prayerData.maghribEnd },
+    { key: 'isha', label: 'Isha', jamaatKey: 'ishaJamaat', time: prayerData.isha, endTime: prayerData.ishaEnd },
   ] as const;
 
   const voluntaryPrayers = [
@@ -249,17 +295,40 @@ export function SpiritualModule() {
   const volCount = voluntaryPrayers.filter(p => todayEntry?.[p.key as keyof PrayerLog]).length;
   const volPct = (volCount / 3) * 100;
 
-  // Literature stats
-  const totalCompleted = literature.filter(l => l.isCompleted || l.current >= l.total).length;
-  const activeLiterature = literature.filter(l => !l.isCompleted && l.current < l.total);
-  const activeProgressPct = activeLiterature.length > 0 
-    ? activeLiterature.reduce((acc, l) => acc + (l.current / l.total), 0) / activeLiterature.length * 100
-    : 0;
+  const getSpiritualGuidance = async () => {
+    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    if (!apiKey) {
+      setAiInsight('Please add your API Key in Settings to enable the Spiritual Guide.');
+      return;
+    }
+    setInsightLoading(true);
+    try {
+      const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'tahajjud', 'chasht', 'nafl'];
+      const completedPrayers = prayers.filter(p => (todayEntry as any)?.[p]);
+      const prayerContext = completedPrayers.length > 0 ? completedPrayers.join(', ') : 'None yet';
+
+      const systemPrompt = `You are a compassionate Islamic spiritual guide. Fasting Mode is ${isFasting ? 'ON' : 'OFF'} today. If Fasting mode is ON, advise on spiritual etiquette for fasting today. Provide a beautiful, highly relevant daily motivation. Share one specific Hadith or a short Quranic Ayah and explain its meaning briefly in the context of self-discipline. Review their prayer logs for today (${prayerContext}) and offer comforting, inspiring words to keep them steadfast.`;
+      
+      const insight = await fetchGemini(systemPrompt, apiKey);
+      setAiInsight(insight);
+    } catch (err: any) {
+      setAiInsight(`Error: ${err.message}`);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
 
   return (
-    <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 relative z-0 pb-20">
+    <>
+      <div 
+        className="fixed inset-0 bg-cover bg-center mix-blend-overlay opacity-30 pointer-events-none z-[-2]"
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?q=80&w=2560&auto=format&fit=crop')" }}
+      ></div>
+      <div className="fixed inset-0 bg-black/70 pointer-events-none z-[-1]"></div>
+
+      <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 relative z-0 pb-20 overflow-x-hidden">
       
-      {/* Abstract Mesh Background */}
       <div className="absolute top-0 left-10 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[150px] pointer-events-none -z-10 mix-blend-screen"></div>
       <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-tertiary/20 rounded-full blur-[150px] pointer-events-none -z-10 mix-blend-screen"></div>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-secondary/10 rounded-full blur-[150px] pointer-events-none -z-10 mix-blend-screen"></div>
@@ -270,7 +339,6 @@ export function SpiritualModule() {
           <p className="text-[18px] text-on-surface-variant">Cultivate inner peace and track your daily devotionals.</p>
         </div>
         
-        {/* Glassmorphic Clock Header */}
         <div className="glass-card px-8 py-4 rounded-2xl flex items-center gap-6 border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.4)] relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="flex flex-col items-end relative z-10">
@@ -281,7 +349,39 @@ export function SpiritualModule() {
           </div>
         </div>
       </header>
-      
+
+      {/* AI Spiritual Guide Card */}
+      <div className="bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-[32px] p-6 glass-card relative overflow-hidden group z-10">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors duration-700"></div>
+        <div className="flex gap-4 items-start relative z-10 flex-col md:flex-row">
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex flex-shrink-0 items-center justify-center text-primary border border-primary/30 shadow-[0_0_15px_rgba(255,180,166,0.3)]">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div className="flex-1 w-full">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xl font-bold text-on-surface">AI Spiritual Guide</h3>
+              <button 
+                onClick={getSpiritualGuidance}
+                disabled={insightLoading}
+                className="bg-primary/20 text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-primary/30 transition-colors border border-primary/30 disabled:opacity-50 whitespace-nowrap"
+              >
+                {insightLoading ? 'Seeking...' : 'Seek Guidance'}
+              </button>
+            </div>
+            {insightLoading ? (
+              <div className="flex items-center gap-2 text-on-surface-variant text-sm mt-2">
+                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                <span>Seeking wisdom and compiling daily guidance...</span>
+              </div>
+            ) : aiInsight ? (
+              <p className="text-on-surface-variant text-sm leading-relaxed mt-2 whitespace-pre-wrap">{aiInsight}</p>
+            ) : (
+              <p className="text-on-surface-variant/60 text-sm mt-2">Seek profound spiritual guidance, daily motivation, and reflections on your devotional progress.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 flex-1">
         <div className="xl:col-span-8 flex flex-col gap-8">
           
@@ -392,7 +492,7 @@ export function SpiritualModule() {
                            <span className={`text-[16px] font-medium leading-tight ${isDone ? 'text-primary' : 'text-on-surface'}`}>
                              {prayer.label}
                            </span>
-                           <span className="text-[11px] font-bold text-on-surface-variant tracking-widest">{prayer.time}</span>
+                           <span className="text-[11px] font-bold text-on-surface-variant tracking-widest">{prayer.time} - {prayer.endTime}</span>
                         </div>
                       </button>
                       
@@ -490,10 +590,19 @@ export function SpiritualModule() {
                 <p className="text-on-surface-variant text-sm italic">No active sacred texts.</p>
               ) : (
                 literature.map(lit => {
+                  if (!lit.title) return null;
+                  
                   const pct = Math.min(100, (lit.current / lit.total) * 100);
                   const isDone = pct === 100 || lit.isCompleted;
                   return (
-                    <div key={lit.id} className="group glass-card p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                    <div key={lit.id} className="group glass-card p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors relative">
+                      <button 
+                        onClick={() => lit.id && setLitToDelete(lit.id)}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-surface-container-highest border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/20 hover:border-error/30 opacity-0 group-hover:opacity-100 transition-all shadow-md z-10"
+                        title="Delete Text"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                       <div className="flex justify-between items-center mb-3">
                         <div>
                           <h5 className={`text-[16px] font-semibold ${isDone ? 'text-on-surface-variant' : 'text-on-surface'} mb-0.5`}>{lit.title}</h5>
@@ -697,6 +806,20 @@ export function SpiritualModule() {
         submitLabel="Add"
         fields={SACRED_TEXT_FIELDS as any}
       />
+
+      <ConfirmModal
+        isOpen={litToDelete !== null}
+        onClose={() => setLitToDelete(null)}
+        onConfirm={() => {
+          if (litToDelete !== null) {
+            litActions.remove(litToDelete);
+            setLitToDelete(null);
+          }
+        }}
+        title="Delete Sacred Text"
+        message="Are you sure you want to remove this sacred text from your reading list?"
+      />
     </div>
+    </>
   );
 }

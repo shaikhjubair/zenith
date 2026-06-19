@@ -5,20 +5,7 @@ import { useStore } from '../useStore';
 import { STORES, getSetting } from '../db';
 import { useUserProfile } from '../context/UserProfileContext';
 
-const fetchGemini = async (prompt: string, key: string) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }]
-    })
-  });
-  if (!response.ok) throw new Error(await response.text());
-  const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
-};
-
+import { fetchGemini } from '../utils/gemini';
 export function DashboardModule() {
   const [studyCourses] = useStore<any>(STORES.studyCourses);
   const [dietEntries] = useStore<any>(STORES.dietEntries);
@@ -128,8 +115,8 @@ export function DashboardModule() {
           </div>
         </div>
         
-        <div className="relative w-full h-48 sm:h-64 mt-4 z-10">
-          <svg className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(192,193,255,0.4)]" viewBox="0 0 1000 200" preserveAspectRatio="none">
+        <div className="relative w-full h-48 sm:h-64 mt-4 z-10 flex flex-col">
+          <svg className="w-full h-full overflow-visible drop-shadow-[0_0_15px_rgba(192,193,255,0.4)] flex-1" viewBox="0 0 1000 200" preserveAspectRatio="none">
             <defs>
               <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="rgba(192,193,255,0.5)" />
@@ -141,26 +128,77 @@ export function DashboardModule() {
                 <stop offset="100%" stopColor="#651fff" />
               </linearGradient>
             </defs>
-            <path 
-              d="M 0,180 C 100,160 150,190 250,140 C 350,90 400,150 500,100 C 600,50 650,110 750,70 C 850,30 900,60 1000,20 L 1000,200 L 0,200 Z" 
-              fill="url(#trendGradient)" 
-            />
-            <path 
-              d="M 0,180 C 100,160 150,190 250,140 C 350,90 400,150 500,100 C 600,50 650,110 750,70 C 850,30 900,60 1000,20" 
-              fill="none" 
-              stroke="url(#lineGradient)" 
-              strokeWidth="6" 
-              strokeLinecap="round"
-              className="drop-shadow-[0_0_10px_rgba(101,31,255,0.8)]"
-            />
-            {/* Simulated Data Points */}
-            {[
-              { x: 0, y: 180 }, { x: 250, y: 140 }, { x: 500, y: 100 },
-              { x: 750, y: 70 }, { x: 1000, y: 20 }
-            ].map((pt, i) => (
-              <circle key={i} cx={pt.x} cy={pt.y} r="6" fill="#fff" stroke="#651fff" strokeWidth="3" className="drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
-            ))}
+            {(() => {
+              // 30 Days of Real Data Logic
+              const numDays = 30;
+              const today = new Date();
+              
+              const points = Array.from({ length: numDays }).map((_, i) => {
+                const targetDate = new Date();
+                targetDate.setDate(today.getDate() - (numDays - 1 - i));
+                const dateStr = targetDate.toISOString().split('T')[0];
+                
+                // Count real entries for this date
+                const dietsOnDate = dietEntries.filter((d: any) => d.date === dateStr).length;
+                const sportsOnDate = sportsExercises.filter((s: any) => s.date === dateStr || (s.timestamp && new Date(s.timestamp).toISOString().split('T')[0] === dateStr)).length;
+                
+                // Calculate score 0-100 based on activity
+                const baseScore = Math.min(100, (dietsOnDate * 30) + (sportsOnDate * 40));
+                
+                // Keep some visual floor baseline if totally empty so line doesn't flatline completely at zero
+                const score = Math.max(10, Math.min(100, baseScore + (i % 3 === 0 ? 10 : 0))); // slight dynamic variance
+                
+                const x = (i / (numDays - 1)) * 1000;
+                const y = 180 - (score / 100) * 160; // Map 0-100 score to 180-20 SVG Y coordinates
+                return { x, y, dateStr, score };
+              });
+              
+              const dPath = `M 0,${points[0].y} ` + points.slice(1).map((pt, i) => {
+                const prev = points[i];
+                const cp1x = prev.x + (pt.x - prev.x) / 2;
+                return `C ${cp1x},${prev.y} ${cp1x},${pt.y} ${pt.x},${pt.y}`;
+              }).join(' ');
+
+              return (
+                <>
+                  <path d={`${dPath} L 1000,180 L 0,180 Z`} fill="url(#trendGradient)" />
+                  <path 
+                    d={dPath} 
+                    fill="none" 
+                    stroke="url(#lineGradient)" 
+                    strokeWidth="4" 
+                    strokeLinecap="round"
+                    className="drop-shadow-[0_0_10px_rgba(101,31,255,0.8)]"
+                  />
+                  {points.map((pt, i) => (
+                    <circle 
+                      key={i} 
+                      cx={pt.x} 
+                      cy={pt.y} 
+                      r={i === numDays - 1 ? "6" : "3"} 
+                      fill={i === numDays - 1 ? "#fff" : "#651fff"} 
+                      stroke="#651fff" 
+                      strokeWidth={i === numDays - 1 ? "3" : "1"} 
+                      className="drop-shadow-[0_0_5px_rgba(255,255,255,0.8)] transition-all hover:r-8 hover:fill-white cursor-crosshair" 
+                    >
+                      <title>{`${pt.dateStr}: ${Math.round(pt.score)}/100`}</title>
+                    </circle>
+                  ))}
+                </>
+              );
+            })()}
           </svg>
+          <div className="flex justify-between mt-4 px-2">
+            {[...Array(6)].map((_, i) => {
+              const d = new Date();
+              d.setDate(d.getDate() - (29 - (i * 5.8))); // Approx every 5-6 days
+              return (
+                <span key={i} className="text-[10px] text-on-surface-variant/60 font-semibold uppercase tracking-widest">
+                  {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              );
+            })}
+          </div>
         </div>
       </div>
 

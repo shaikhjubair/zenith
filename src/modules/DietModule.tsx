@@ -4,8 +4,36 @@ import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useStore } from '../useStore';
 import { STORES } from '../db';
-import { Plus, Minus, X, Info, Droplet, Activity } from 'lucide-react';
+import { Plus, Minus, X, Info, Droplet, Activity, Sparkles } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
+
+const fetchGemini = async (prompt: string, key: string) => {
+  // 1. Fetch available models
+  const modelsUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+  const modelsRes = await fetch(modelsUrl);
+  if (!modelsRes.ok) throw new Error("Failed to fetch available models.");
+  const modelsData = await modelsRes.json();
+  
+  // 2. Find a working model
+  const validModels = modelsData.models.filter((m: any) => 
+    m.supportedGenerationMethods?.includes("generateContent") && m.name.includes("gemini")
+  );
+  if (validModels.length === 0) throw new Error("No compatible Gemini models found.");
+  
+  const selectedModel = validModels.find((m: any) => m.name.includes("1.5-flash"))?.name || validModels[0].name;
+
+  // 3. Request generation
+  const url = `https://generativelanguage.googleapis.com/v1beta/${selectedModel}:generateContent?key=${key}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+  });
+
+  if (!response.ok) throw new Error(await response.text());
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+};
 
 interface DietEntry {
   id?: number;
@@ -52,7 +80,62 @@ const DAY_LABELS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 export function DietModule() {
   const [entries, actions, loading] = useStore<DietEntry>(STORES.dietEntries);
   const [meals, mealActions, mealsLoading] = useStore<DietMeal>(STORES.dietMeals);
-  const { profile, updateProfile } = useUserProfile();
+  const { profile } = useUserProfile();
+
+  const [aiInsight, setAiInsight] = useState('');
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [suggestedMeals, setSuggestedMeals] = useState<any[]>([]);
+
+  const handleMealPlan = async () => {
+    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    if (!apiKey) {
+      setAiInsight('Please add your API Key in Settings to enable the AI Dietitian.');
+      return;
+    }
+    setInsightLoading(true);
+    setSuggestedMeals([]);
+    try {
+      const systemPrompt = `You are a strict nutritionist. Budget 3500 BDT. Goal: Muscle gain, fat loss. Based on my routine, reply ONLY with a valid JSON array of today's recommended meals. DO NOT use markdown asterisks (*). DO NOT write any text outside the JSON array. Format exactly like this: [{ "mealType": "Breakfast", "food": "2 Parathas, Dal, 1 Egg", "calories": 450 }]`;
+      const insight = await fetchGemini(systemPrompt, apiKey);
+      
+      const cleanJson = insight.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      if (Array.isArray(parsed)) {
+        setSuggestedMeals(parsed);
+        setAiInsight('Meal plan generated! Click "+ Add" to log these meals to your day.');
+      } else {
+        setAiInsight(insight);
+      }
+    } catch (err: any) {
+      setAiInsight(`Could not parse plan. Raw output: ${err.message}`);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
+
+  const handleEndOfDayReview = async () => {
+    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    if (!apiKey) {
+      setAiInsight('Please add your API Key in Settings to enable the AI Dietitian.');
+      return;
+    }
+    if (!selectedEntry) {
+      setAiInsight('Select a date on the calendar first to review it.');
+      return;
+    }
+    setInsightLoading(true);
+    setSuggestedMeals([]);
+    try {
+      const mealsContext = meals.map((m: any) => `${m.mealType}: ${m.food} (${m.calories}kcal)`).join(', ');
+      const systemPrompt = `Review my logged meals and hydration today based on my 3500 BDT budget and muscle gain goals. Reply in MAXIMUM 2 short sentences. Be harsh and direct. NO markdown asterisks (*). Logged Meals: ${mealsContext || 'None'}. Hydration: ${selectedEntry.hydration}/${selectedEntry.hydrationGoal}ml. Cheat Meals: ${selectedEntry.cheatMeals}/${selectedEntry.cheatBudget}.`;
+      const insight = await fetchGemini(systemPrompt, apiKey);
+      setAiInsight(insight);
+    } catch (err: any) {
+      setAiInsight(`Error: ${err.message}`);
+    } finally {
+      setInsightLoading(false);
+    }
+  };
   
   const [showCalorieModal, setShowCalorieModal] = useState(false);
   const [showMealModal, setShowMealModal] = useState(false);
@@ -206,7 +289,7 @@ export function DietModule() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-full relative z-0 min-h-[80vh] flex-1">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-full relative z-0 min-h-[80vh] flex-1 overflow-x-hidden">
       
       {/* Abstract Mesh Background */}
       <div className="absolute top-10 left-10 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
@@ -233,6 +316,71 @@ export function DietModule() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* AI Dietitian Card */}
+      <div className="lg:col-span-12 bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-[32px] p-6 glass-card relative overflow-hidden group mb-2 z-10">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors duration-700"></div>
+        <div className="flex gap-4 items-start relative z-10 flex-col md:flex-row">
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex flex-shrink-0 items-center justify-center text-primary border border-primary/30 shadow-[0_0_15px_rgba(255,180,166,0.3)]">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div className="flex-1 w-full">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+              <h3 className="text-xl font-bold text-on-surface">AI Dietitian & Coach</h3>
+              <div className="flex gap-3 w-full md:w-auto">
+                <button 
+                  onClick={handleMealPlan}
+                  disabled={insightLoading}
+                  className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-primary/20 transition-colors border border-primary/20 disabled:opacity-50 whitespace-nowrap flex-1 md:flex-none"
+                >
+                  Daily Meal Plan
+                </button>
+                <button 
+                  onClick={handleEndOfDayReview}
+                  disabled={insightLoading}
+                  className="bg-primary/20 text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider hover:bg-primary/30 transition-colors border border-primary/30 disabled:opacity-50 whitespace-nowrap flex-1 md:flex-none"
+                >
+                  End of Day Review
+                </button>
+              </div>
+            </div>
+            {insightLoading ? (
+              <div className="flex items-center gap-2 text-on-surface-variant text-sm mt-2">
+                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                <span>Analyzing biological macros and routines...</span>
+              </div>
+            ) : aiInsight ? (
+              <>
+                <p className="text-on-surface-variant text-sm leading-relaxed mt-2 whitespace-pre-wrap">{aiInsight}</p>
+                {suggestedMeals.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-2">
+                    {suggestedMeals.map((m, idx) => (
+                      <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 flex justify-between items-center group hover:bg-white/10 transition-colors">
+                        <div>
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">{m.mealType}</p>
+                          <p className="text-sm font-medium text-on-surface">{m.food}</p>
+                          <p className="text-xs text-on-surface-variant">{m.calories} kcal</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            mealActions.add({ date: selectedDayDate, mealType: m.mealType, food: m.food, calories: m.calories });
+                            setSuggestedMeals(prev => prev.filter((_, i) => i !== idx));
+                          }}
+                          className="bg-primary/20 text-primary px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/40 transition-colors shadow-sm whitespace-nowrap"
+                        >
+                          + Add
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-on-surface-variant/60 text-sm mt-2">Generate a daily meal plan based on your routine, or review your daily log compliance.</p>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Cyclical Planner */}
       <div className="lg:col-span-8 lg:row-span-2 bg-surface/60 backdrop-blur-xl border border-white/20 border-t-white/30 border-l-white/30 rounded-[32px] p-8 flex flex-col gap-6 shadow-[0_4px_30px_rgba(0,0,0,0.1)] glass-card relative z-10">

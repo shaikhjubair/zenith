@@ -143,7 +143,7 @@ export function LibraryModule() {
       />
       <div className="fixed inset-0 z-[-1] bg-gradient-to-t from-background via-background/90 to-background/50 pointer-events-none"></div>
 
-      <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 relative z-0">
+      <div className="max-w-[1400px] w-full mx-auto flex flex-col h-full gap-8 relative z-0 overflow-x-hidden">
       {/* Abstract Mesh Background */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-secondary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
