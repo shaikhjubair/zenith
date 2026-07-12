@@ -35,6 +35,19 @@ class DashboardErrorBoundary extends React.Component<any, { hasError: boolean }>
   }
 }
 
+const notifyUser = (title: string, body: string) => {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '/logo.png' });
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        new Notification(title, { body, icon: '/logo.png' });
+      }
+    });
+  }
+};
+
 const SmartClassCard = ({ cls, currentTime }: any) => {
   const [isActive, setIsActive] = useState(false);
 
@@ -98,15 +111,9 @@ const SmartClassCard = ({ cls, currentTime }: any) => {
       if (isActive && !isEnded && (remaining === 300 || remaining === 0)) {
         if (notifiedMinsRef.current !== remaining && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           notifiedMinsRef.current = remaining;
-          if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
-            navigator.serviceWorker.ready.then(registration => {
-              registration.showNotification(remaining === 300 ? "Class Starting Soon!" : "Class Starting!", {
-                body: `Your ${cls.type} class for ${cls.course} starts ${remaining === 300 ? 'in 5 minutes' : 'now'} in Room ${cls.room}.`,
-                icon: '/logo.png',
-                vibrate: [200, 100, 200]
-              });
-            });
-          }
+          const title = remaining === 300 ? "Class Starting Soon!" : "Class Starting!";
+          const body = `Your ${cls.type} class for ${cls.course} starts ${remaining === 300 ? 'in 5 minutes' : 'now'} in Room ${cls.room}.`;
+          notifyUser(title, body);
         }
       }
     } catch (err) {
@@ -174,23 +181,10 @@ const SmartClassWidget = () => {
   };
 
   const triggerTestNotification = () => {
-    if (Notification.permission === 'granted') {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
-        navigator.serviceWorker.ready.then(registration => {
-          registration.showNotification("Zenith Test Alert!", {
-            body: "Wow bro! Tomar Zenith PWA notification ekdom perfectly kaj korche!",
-            icon: '/logo.png',
-            vibrate: [200, 100, 200]
-          });
-        });
-      } else {
-        new Notification("Zenith Test Alert!", {
-          body: "Wow bro! Tomar Zenith browser notification ekdom perfectly kaj korche!"
-        });
-      }
-    } else {
-      alert("Please enable notification permission first by clicking 'Enable Class Alerts'!");
-    }
+    notifyUser(
+      "Zenith Test Alert!",
+      "Wow bro! Tomar Zenith PWA notification ekdom perfectly kaj korche!"
+    );
   };
 
   const todaysClasses = getTodayClasses();
