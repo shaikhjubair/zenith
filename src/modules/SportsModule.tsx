@@ -2,38 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Accessibility, Shell, Plus, X, Loader2, Play, Square, AlertTriangle, CheckCircle2, Circle, CalendarX, Sparkles } from 'lucide-react';
 import { useStore } from '../useStore';
-import { STORES } from '../db';
+import { STORES, getLocalApiKey } from '../db';
 import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useUserProfile } from '../context/UserProfileContext';
-
-const fetchGemini = async (prompt: string, key: string) => {
-  let model = 'gemini-1.5-flash';
-  let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-  let response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
-  });
-  if (!response.ok) {
-    let errorData: any = {};
-    try { errorData = await response.json(); } catch(e) {}
-    if (errorData.error?.code === 404 || response.status === 404) {
-      model = 'gemini-1.5-pro';
-      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
-      });
-      if (!response.ok) throw new Error(await response.text());
-    } else {
-      throw new Error(JSON.stringify(errorData));
-    }
-  }
-  const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
-};
+import { fetchGemini } from '../utils/gemini';
 
 interface ExerciseSet {
   setNum: number;
@@ -308,7 +281,7 @@ export function SportsModule() {
   const todaysStats = useMemo(() => computeStatsForDay(todaysExercises), [todaysExercises]);
 
   const handleTodaysRoutine = async () => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = getLocalApiKey();
     if (!apiKey) {
       setAiInsight('Please add your API Key in Settings to enable the AI Coach.');
       return;
@@ -326,7 +299,7 @@ export function SportsModule() {
   };
 
   const handleReviewPerformance = async () => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = getLocalApiKey();
     if (!apiKey) {
       setAiInsight('Please add your API Key in Settings to enable the AI Coach.');
       return;

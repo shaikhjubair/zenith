@@ -6,13 +6,14 @@ import { STORES, getSetting } from '../db';
 import { useUserProfile } from '../context/UserProfileContext';
 
 import { fetchGemini } from '../utils/gemini';
-import { SCHEDULE_DATA, useCurrentTime } from './StudyModule';
+import { useCurrentTime } from './StudyModule';
+import { getLocalApiKey } from '../db';
 
 class DashboardErrorBoundary extends React.Component<any, { hasError: boolean }> {
   constructor(props: any) {
     super(props);
-    this.state = { hasError: false };
   }
+  state = { hasError: false };
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true };
@@ -31,7 +32,7 @@ class DashboardErrorBoundary extends React.Component<any, { hasError: boolean }>
         </div>
       );
     }
-    return this.props.children;
+    return (this as any).props.children;
   }
 }
 
@@ -151,16 +152,17 @@ const SmartClassCard = ({ cls, currentTime }: any) => {
   );
 };
 
-const SmartClassWidget = () => {
+const SmartClassWidget = ({ studyCourses }: { studyCourses: any[] }) => {
   const currentTime = useCurrentTime();
   const dayIndex = currentTime.getDay();
   const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const todayStr = daysMap[dayIndex];
   
   const getTodayClasses = () => {
-    return SCHEDULE_DATA.filter(c => c.day === todayStr).map(c => {
+    if (!studyCourses) return [];
+    return studyCourses.filter(c => c.day === todayStr).map(c => {
       const isLab = c.course.toLowerCase().includes('lab') || c.course.toLowerCase().includes('laboratory');
-      const duration = isLab ? 150 : 80;
+      const duration = isLab ? 150 : (c.duration || 80);
       return { ...c, isLab, duration };
     });
   };
@@ -232,6 +234,7 @@ const SmartClassWidget = () => {
 };
 
 export function DashboardModule() {
+  const [studySchedule] = useStore<any>(STORES.studySchedule);
   const [studyCourses] = useStore<any>(STORES.studyCourses);
   const [dietEntries] = useStore<any>(STORES.dietEntries);
   const [sportsExercises] = useStore<any>(STORES.sportsExercises);
@@ -241,7 +244,7 @@ export function DashboardModule() {
   const [insightLoading, setInsightLoading] = useState(false);
 
   const fetchInsight = async () => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = getLocalApiKey();
     if (!apiKey) {
       setAiInsight('API Key missing. Please set it in Settings.');
       return;
@@ -288,7 +291,7 @@ export function DashboardModule() {
       </div>
 
       {/* Smart Class Widget */}
-      <SmartClassWidget />
+      <SmartClassWidget studyCourses={studySchedule} />
 
 
       {/* Quick Stats Grid */}

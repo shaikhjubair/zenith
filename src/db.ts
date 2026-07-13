@@ -16,17 +16,34 @@ export const STORES = {
   dietEntries: 'diet_entries',
   dietMeals: 'diet_meals',
   studyCourses: 'study_courses',
+  studySchedule: 'study_schedule',
 } as const;
 
 export type StoreName = (typeof STORES)[keyof typeof STORES];
 
 // --- Settings helpers ---
 
+export function getLocalApiKey(): string {
+  const user = auth.currentUser;
+  if (!user) return '';
+  return localStorage.getItem(`GEMINI_API_KEY_${user?.uid}`) || '';
+}
+
+export function setLocalApiKey(key: string): void {
+  const user = auth.currentUser;
+  if (!user) return;
+  if (!key) {
+    localStorage.removeItem(`GEMINI_API_KEY_${user?.uid}`);
+  } else {
+    localStorage.setItem(`GEMINI_API_KEY_${user?.uid}`, key);
+  }
+}
+
 export async function getSetting<T>(key: string): Promise<T | undefined> {
   const user = auth.currentUser;
   if (!user) return undefined;
   
-  const docRef = doc(db, `users/${user.uid}/settings`, key);
+  const docRef = doc(db, `users/${user?.uid}/settings`, key);
   const snapshot = await getDoc(docRef);
   if (snapshot.exists()) {
     return snapshot.data().value as T;
@@ -38,7 +55,7 @@ export async function setSetting<T>(key: string, value: T): Promise<void> {
   const user = auth.currentUser;
   if (!user) return;
   
-  const docRef = doc(db, `users/${user.uid}/settings`, key);
+  const docRef = doc(db, `users/${user?.uid}/settings`, key);
   await setDoc(docRef, { value });
 }
 

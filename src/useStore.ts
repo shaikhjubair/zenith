@@ -26,7 +26,7 @@ export function useStore<T extends { id?: string | number }>(storeName: StoreNam
     }
 
     setLoading(true);
-    const q = query(collection(db, `users/${user.uid}/${storeRef.current}`));
+    const q = query(collection(db, `users/${user?.uid}/${storeRef.current}`));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -48,7 +48,7 @@ export function useStore<T extends { id?: string | number }>(storeName: StoreNam
       const user = auth.currentUser;
       if (!user) return;
       try {
-        await addDoc(collection(db, `users/${user.uid}/${storeRef.current}`), item as any);
+        await addDoc(collection(db, `users/${user?.uid}/${storeRef.current}`), item as any);
       } catch (err) {
         console.error(`[useStore] Failed to add to ${storeRef.current}:`, err);
       }
@@ -58,7 +58,7 @@ export function useStore<T extends { id?: string | number }>(storeName: StoreNam
       const user = auth.currentUser;
       if (!user) return;
       try {
-        const docRef = doc(db, `users/${user.uid}/${storeRef.current}`, id.toString());
+        const docRef = doc(db, `users/${user?.uid}/${storeRef.current}`, id.toString());
         await updateDoc(docRef, updates as any);
       } catch (err) {
         console.error(`[useStore] Failed to update ${storeRef.current}:`, err);
@@ -69,7 +69,7 @@ export function useStore<T extends { id?: string | number }>(storeName: StoreNam
       const user = auth.currentUser;
       if (!user) return;
       try {
-        const docRef = doc(db, `users/${user.uid}/${storeRef.current}`, id.toString());
+        const docRef = doc(db, `users/${user?.uid}/${storeRef.current}`, id.toString());
         await deleteDoc(docRef);
       } catch (err) {
         console.error(`[useStore] Failed to remove from ${storeRef.current}:`, err);

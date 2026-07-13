@@ -1,7 +1,7 @@
 import { Search, Bell, Settings, Menu } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useUserProfile } from '../context/UserProfileContext';
-import { ProfileModal } from './ProfileModal';
+import { AccountHubModal } from './AccountHubModal';
 import { useState } from 'react';
 
 interface TopBarProps {
@@ -15,7 +15,8 @@ interface TopBarProps {
 export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSearch }: TopBarProps) {
   const { notifications, hasUnread, clearUnread } = useNotifications();
   const { profile } = useUserProfile();
-  const [showProfile, setShowProfile] = useState(false);
+  const [showAccountHub, setShowAccountHub] = useState(false);
+  const [accountHubTab, setAccountHubTab] = useState<'personal' | 'study' | 'integrations'>('personal');
   const [showNotifications, setShowNotifications] = useState(false);
 
   return (
@@ -81,12 +82,12 @@ export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSea
           )}
         </div>
 
-        <button onClick={onOpenSettings} className="shrink-0 aspect-square min-w-[40px] w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5">
+        <button onClick={() => { setAccountHubTab('integrations'); setShowAccountHub(true); }} className="shrink-0 aspect-square min-w-[40px] w-10 h-10 rounded-full bg-surface-container/50 border border-white/10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors hover:bg-white/5">
           <Settings className="w-5 h-5" />
         </button>
 
         <button 
-          onClick={() => setShowProfile(true)}
+          onClick={() => { setAccountHubTab('personal'); setShowAccountHub(true); }}
           className="shrink-0 aspect-square min-w-[40px] w-10 h-10 rounded-full bg-gradient-to-tr from-[#651fff] to-[#00e676] p-[2px] shadow-[0_0_15px_rgba(101,31,255,0.4)] hover:scale-105 transition-transform"
         >
           <div className="w-full h-full rounded-full bg-surface/80 backdrop-blur-md flex items-center justify-center overflow-hidden border border-white/20">
@@ -99,7 +100,7 @@ export function TopBar({ title, subtitle, onMenuClick, onOpenSettings, onOpenSea
         </button>
       </div>
 
-      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
+      <AccountHubModal isOpen={showAccountHub} onClose={() => setShowAccountHub(false)} defaultTab={accountHubTab} />
     </header>
   );
 }

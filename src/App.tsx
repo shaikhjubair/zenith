@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { AuthGate } from './components/AuthGate';
-import { seedIfEmpty } from './db';
 
 // Import modules dynamically
 const StudyModule = lazy(() => import('./modules/StudyModule').then(module => ({ default: module.StudyModule })));
@@ -18,14 +17,12 @@ const DashboardModule = lazy(() => import('./modules/DashboardModule').then(modu
 import { GlobalTimerProvider } from './context/GlobalTimerContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { UserProfileProvider } from './context/UserProfileContext';
-import { SettingsModal } from './components/SettingsModal';
 import { CommandPalette } from './components/CommandPalette';
 import { SecureModuleWrapper } from './components/SecureModuleWrapper';
 
 export default function App() {
   const [activeModule, setActiveModule] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   const renderModule = () => {
     switch (activeModule) {
@@ -59,9 +56,8 @@ export default function App() {
                 isOpen={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}
               />
-              <TopBar 
-                onMenuClick={() => setSidebarOpen(true)} 
-                onOpenSettings={() => setShowSettings(true)}
+                <TopBar 
+                  onMenuClick={() => setSidebarOpen(true)} 
                 onOpenSearch={() => {
                   const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true });
                   window.dispatchEvent(event);
@@ -82,7 +78,7 @@ export default function App() {
                 </motion.div>
               </main>
               
-              <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+
               <CommandPalette onNavigate={setActiveModule} />
             </div>
           </AuthGate>

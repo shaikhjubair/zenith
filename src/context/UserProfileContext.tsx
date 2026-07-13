@@ -4,6 +4,10 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../firebase';
 
 export interface UserProfile {
+  name: string;
+  phone: string;
+  address: string;
+  dob: string;
   avatarUrl: string;
   height: string;
   weight: string;
@@ -12,6 +16,10 @@ export interface UserProfile {
 }
 
 const DEFAULT_PROFILE: UserProfile = {
+  name: '',
+  phone: '',
+  address: '',
+  dob: '',
   avatarUrl: '',
   height: '',
   weight: '',

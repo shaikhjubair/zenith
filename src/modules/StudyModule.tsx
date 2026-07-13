@@ -18,16 +18,7 @@ interface StudyCourse {
   completedClasses?: number;
   last_auto_increment_date?: string;
 }
-export const SCHEDULE_DATA = [
-  { course: "CSE 1115: Object Oriented Programming", day: "Sat", time: "03:11PM - 04:30PM", room: "305", type: "Theory" },
-  { course: "CSE 1115: Object Oriented Programming", day: "Tue", time: "03:11PM - 04:30PM", room: "305", type: "Theory" },
-  { course: "CSE 1116: OOP Laboratory", day: "Tue", time: "08:30AM - 11:00AM", room: "426", type: "Lab" },
-  { course: "EEE 2113: Electrical Circuits", day: "Sun", time: "12:31PM - 01:50PM", room: "428", type: "Theory" },
-  { course: "EEE 2113: Electrical Circuits", day: "Wed", time: "12:31PM - 01:50PM", room: "428", type: "Theory" },
-  { course: "EEE 2124: Electronics Laboratory", day: "Wed", time: "02:00PM - 04:30PM", room: "504", type: "Lab" },
-  { course: "MATH 1151: Fundamental Calculus", day: "Sun", time: "09:51AM - 11:10AM", room: "731", type: "Theory" },
-  { course: "MATH 1151: Fundamental Calculus", day: "Wed", time: "09:51AM - 11:10AM", room: "731", type: "Theory" }
-];
+// SCHEDULE_DATA is now loaded dynamically from STORES.studySchedule
 
 export const useCurrentTime = () => {
   const [time, setTime] = useState(new Date());
@@ -84,7 +75,8 @@ const ClassRoutineWidget = () => {
   const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const todayStr = daysMap[dayIndex];
   
-  const todaysClasses = SCHEDULE_DATA.filter(c => c.day === todayStr);
+  const [studySchedule] = useStore<any>(STORES.studySchedule);
+  const todaysClasses = (studySchedule || []).filter((c: any) => c.day === todayStr);
   
   const formattedDate = currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -145,7 +137,8 @@ const ClassRoutineWidget = () => {
            </h4>
            <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(dayName => {
-                const dayClasses = SCHEDULE_DATA.filter(c => c.day === dayName);
+                const [studySchedule] = useStore<any>(STORES.studySchedule);
+                const dayClasses = (studySchedule || []).filter((c: any) => c.day === dayName);
                 return (
                   <div key={dayName} className={`min-w-[200px] shrink-0 border border-white/5 p-5 rounded-2xl flex flex-col ${dayClasses.length > 0 ? 'bg-surface-container-lowest/50' : 'bg-surface-container-lowest/10 opacity-70'}`}>
                     <h5 className={`font-bold uppercase tracking-widest mb-3 text-[12px] ${dayName === todayStr ? 'text-primary' : 'text-on-surface-variant'}`}>{dayName} {dayName === todayStr && '(Today)'}</h5>
@@ -249,6 +242,7 @@ const TimerWidget = () => {
 export function StudyModule() {
   const currentTime = useCurrentTime();
   const [courses, actions, loading] = useStore<StudyCourse>(STORES.studyCourses);
+  const [studySchedule] = useStore<any>(STORES.studySchedule);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
   const [courseToDelete, setCourseToDelete] = useState<number | null>(null);
@@ -267,7 +261,7 @@ export function StudyModule() {
     const todayStamp = currentTime.toLocaleDateString('en-CA');
 
     courses.forEach(course => {
-      const todayClassesForCourse = SCHEDULE_DATA.filter(s => s.day === todayStr && isCourseMatch(s.course, course.title));
+      const todayClassesForCourse = (studySchedule || []).filter((s: any) => s.day === todayStr && isCourseMatch(s.course, course.title));
       const endedClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'ended');
       
       if (endedClass && course.last_auto_increment_date !== todayStamp) {
@@ -569,7 +563,7 @@ export function StudyModule() {
                     const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                     const todayStr = daysMap[currentTime.getDay()];
                     
-                    const todayClassesForCourse = SCHEDULE_DATA.filter(s => s.day === todayStr && isCourseMatch(s.course, course.title));
+                    const todayClassesForCourse = (studySchedule || []).filter((s: any) => s.day === todayStr && isCourseMatch(s.course, course.title));
 
                     const activeClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'active');
                     const upcomingClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'upcoming');

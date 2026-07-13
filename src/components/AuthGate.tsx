@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Fingerprint, ArrowRight, ShieldCheck, Key, Mail, Lock } from 'lucide-react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendEmailVerification, signOut, sendPasswordResetEmail, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '../firebase';
 import { ZenithCanvasBackground } from './ZenithCanvasBackground';
 
@@ -17,12 +17,35 @@ export function AuthGate({ children }: AuthGateProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [unverifiedUser, setUnverifiedUser] = useState<any>(null);
+  
+  const [resetMode, setResetMode] = useState(false);
+  const [oobCode, setOobCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    const code = params.get('oobCode');
+    if (mode === 'resetPassword' && code) {
+      setResetMode(true);
+      setOobCode(code);
+    }
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setIsAuthenticated(true);
+        if (user.emailVerified) {
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          setErrorMsg('Please verify your email before logging in.');
+          signOut(auth);
+        }
       } else {
         setIsAuthenticated(false);
       }
@@ -34,23 +57,105 @@ export function AuthGate({ children }: AuthGateProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (resetMode) {
+      if (!newPassword.trim() || !oobCode) return;
+      setIsSubmitting(true);
+      setErrorMsg('');
+      setSuccessMsg('');
+      
+      try {
+        await confirmPasswordReset(auth, oobCode, newPassword);
+        setSuccessMsg("Password successfully reset! You can now log in.");
+        setTimeout(() => {
+          setResetMode(false);
+          setIsLogin(true);
+          setSuccessMsg('');
+          setNewPassword('');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }, 3000);
+      } catch (error: any) {
+        console.error("Confirm reset error:", error);
+        setErrorMsg(error.message || 'Failed to reset password. Link may be expired.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+    
+    if (isForgotPassword) {
+      if (!email.trim()) {
+        setErrorMsg("Please enter your email address.");
+        return;
+      }
+      setIsSubmitting(true);
+      setErrorMsg('');
+      setSuccessMsg('');
+      try {
+        const actionCodeSettings = {
+          url: 'https://shaikhjubair.me/zenith/',
+          handleCodeInApp: false,
+        };
+        await sendPasswordResetEmail(auth, email, actionCodeSettings);
+        setSuccessMsg("Password reset email sent! Check your inbox.");
+      } catch (error: any) {
+        console.error("Forgot password error:", error);
+        setErrorMsg(error.message || 'Failed to send password reset email.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (!email.trim() || !password.trim()) return;
     
     setIsSubmitting(true);
     setErrorMsg('');
+    setSuccessMsg('');
+    setUnverifiedUser(null);
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        if (!userCredential.user.emailVerified) {
+          setUnverifiedUser(userCredential.user);
+          await signOut(auth);
+          setErrorMsg('Please verify your email before logging in.');
+          setIsSubmitting(false);
+          return;
+        }
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        try {
+          await sendEmailVerification(userCredential.user);
+        } catch (verifyErr) {
+          console.error("Verification email error:", verifyErr);
+        }
+        await signOut(auth);
+        setErrorMsg('Verification email sent. Please verify your email before logging in.');
+        setIsLogin(true); // Switch to login view
+        setIsSubmitting(false);
+        return;
       }
-      // onAuthStateChanged will handle setting isAuthenticated to true
+      // onAuthStateChanged will handle setting isAuthenticated to true for verified users
     } catch (error: any) {
       console.error("Auth error:", error);
       setErrorMsg(error.message || 'Authentication failed. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedUser) return;
+    try {
+      await sendEmailVerification(unverifiedUser);
+      setSuccessMsg('Verification email resent. Check your inbox.');
+      setErrorMsg('');
+      setUnverifiedUser(null);
+    } catch (err: any) {
+      console.error("Resend error:", err);
+      setErrorMsg(err.message || 'Failed to resend verification email.');
     }
   };
 
@@ -92,41 +197,72 @@ export function AuthGate({ children }: AuthGateProps) {
           </div>
 
           <h1 className="text-[36px] font-bold text-on-surface mb-2 tracking-tight text-center leading-none">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {resetMode ? 'Set New Password' : (isForgotPassword ? 'Reset Password' : (isLogin ? 'Welcome Back' : 'Create Account'))}
           </h1>
           <p className="text-[16px] text-on-surface-variant text-center mb-8">
-            {isLogin ? 'Sign in to access Zenith.' : 'Join the elite personal operating system.'}
+            {resetMode ? 'Enter a strong password for your account.' : (isForgotPassword ? 'Enter your email to receive a reset link.' : (isLogin ? 'Sign in to access Zenith.' : 'Join the elite personal operating system.'))}
           </p>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 relative z-20">
-            <div className="relative group">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant group-focus-within:text-primary transition-colors" />
-              <input
-                type="email"
-                placeholder="shaikh.jubair.2025@gmail.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-surface-container-lowest/80 border border-white/10 hover:border-primary/50 hover:bg-white/5 focus:bg-white/10 focus:border-primary focus:shadow-[0_0_30px_rgba(255,180,166,0.4),inset_0_0_20px_rgba(255,180,166,0.1)] focus:-translate-y-0.5 rounded-2xl pl-12 pr-4 py-4 text-[16px] text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none transition-all duration-500"
-                required
-              />
-            </div>
-            
-            <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant group-focus-within:text-primary transition-colors" />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface-container-lowest/80 border border-white/10 hover:border-primary/50 hover:bg-white/5 focus:bg-white/10 focus:border-primary focus:shadow-[0_0_30px_rgba(255,180,166,0.4),inset_0_0_20px_rgba(255,180,166,0.1)] focus:-translate-y-0.5 rounded-2xl pl-12 pr-4 py-4 text-[16px] text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none transition-all duration-500"
-                required
-              />
-            </div>
+            {resetMode ? (
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant group-focus-within:text-primary transition-colors" />
+                <input
+                  type="password"
+                  placeholder="New Password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-surface-container-lowest/80 border border-white/10 hover:border-primary/50 hover:bg-white/5 focus:bg-white/10 focus:border-primary focus:shadow-[0_0_30px_rgba(255,180,166,0.4),inset_0_0_20px_rgba(255,180,166,0.1)] focus:-translate-y-0.5 rounded-2xl pl-12 pr-4 py-4 text-[16px] text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none transition-all duration-500"
+                  required
+                />
+              </div>
+            ) : (
+              <>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant group-focus-within:text-primary transition-colors" />
+                  <input
+                    type="email"
+                    placeholder="shaikh.jubair.2025@gmail.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-surface-container-lowest/80 border border-white/10 hover:border-primary/50 hover:bg-white/5 focus:bg-white/10 focus:border-primary focus:shadow-[0_0_30px_rgba(255,180,166,0.4),inset_0_0_20px_rgba(255,180,166,0.1)] focus:-translate-y-0.5 rounded-2xl pl-12 pr-4 py-4 text-[16px] text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none transition-all duration-500"
+                    required
+                  />
+                </div>
+                
+                {!isForgotPassword && (
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-on-surface-variant group-focus-within:text-primary transition-colors" />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-surface-container-lowest/80 border border-white/10 hover:border-primary/50 hover:bg-white/5 focus:bg-white/10 focus:border-primary focus:shadow-[0_0_30px_rgba(255,180,166,0.4),inset_0_0_20px_rgba(255,180,166,0.1)] focus:-translate-y-0.5 rounded-2xl pl-12 pr-4 py-4 text-[16px] text-on-surface placeholder:text-on-surface-variant/30 focus:outline-none transition-all duration-500"
+                      required
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {isLogin && !isForgotPassword && (
+              <div className="flex justify-end mt-1">
+                <button 
+                  type="button"
+                  onClick={() => { setIsForgotPassword(true); setErrorMsg(''); setSuccessMsg(''); }}
+                  className="text-sm font-semibold text-primary hover:text-primary-fixed transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
 
             <div className="h-6 mt-1 flex items-center justify-center">
-              <AnimatePresence>
+              <AnimatePresence mode="wait">
                 {errorMsg && (
                   <motion.p 
+                    key="error"
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
@@ -135,34 +271,85 @@ export function AuthGate({ children }: AuthGateProps) {
                     {errorMsg}
                   </motion.p>
                 )}
+                {successMsg && (
+                  <motion.p 
+                    key="success"
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs font-medium text-primary text-center"
+                  >
+                    {successMsg}
+                  </motion.p>
+                )}
               </AnimatePresence>
             </div>
 
+            {unverifiedUser && (
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                className="w-full py-2 mb-2 rounded-xl bg-surface-container border border-primary/30 text-primary font-bold text-[14px] hover:bg-primary/10 transition-colors"
+              >
+                Resend Verification Email
+              </button>
+            )}
+
             <button 
               type="submit"
-              disabled={isSubmitting || !email || !password}
+              disabled={isSubmitting || (resetMode ? !newPassword : (!email || (!isForgotPassword && !password)))}
               className="w-full py-4 mt-2 rounded-2xl bg-primary text-on-primary font-bold text-[16px] tracking-wide shadow-[0_0_20px_rgba(255,180,166,0.3)] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(255,180,166,0.6)] hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:hover:-translate-y-0 disabled:hover:shadow-[0_0_20px_rgba(255,180,166,0.3)] disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  {isLogin ? 'Sign In' : 'Sign Up'} <ArrowRight className="w-5 h-5" />
+                  {resetMode ? 'Confirm Password' : (isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Sign In' : 'Sign Up'))} <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
           </form>
 
           <div className="w-full mt-6 pt-6 border-t border-white/10 flex justify-center">
-            <button 
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setErrorMsg('');
-              }}
-              className="text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors py-2 px-4 rounded-full hover:bg-primary/10"
-            >
-              {isLogin ? "Don't have an account? Create one." : "Already have an account? Sign in."}
-            </button>
+            {resetMode ? (
+              <button 
+                type="button"
+                onClick={() => {
+                  setResetMode(false);
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                }}
+                className="text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors py-2 px-4 rounded-full hover:bg-primary/10"
+              >
+                Cancel Reset
+              </button>
+            ) : isForgotPassword ? (
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                className="text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors py-2 px-4 rounded-full hover:bg-primary/10"
+              >
+                Back to Login
+              </button>
+            ) : (
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                  setUnverifiedUser(null);
+                }}
+                className="text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors py-2 px-4 rounded-full hover:bg-primary/10"
+              >
+                {isLogin ? "Don't have an account? Create one." : "Already have an account? Sign in."}
+              </button>
+            )}
           </div>
         </div>
       </motion.div>

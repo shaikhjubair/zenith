@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useStore } from '../useStore';
-import { STORES } from '../db';
+import { STORES, getLocalApiKey } from '../db';
 import { Plus, Minus, X, Info, Droplet, Activity, Sparkles } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
 
@@ -84,14 +84,14 @@ const DAY_LABELS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 export function DietModule() {
   const [entries, actions, loading] = useStore<DietEntry>(STORES.dietEntries);
   const [meals, mealActions, mealsLoading] = useStore<DietMeal>(STORES.dietMeals);
-  const { profile } = useUserProfile();
+  const { profile, updateProfile } = useUserProfile();
 
   const [aiInsight, setAiInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
   const [suggestedMeals, setSuggestedMeals] = useState<any[]>([]);
 
   const handleMealPlan = async () => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = getLocalApiKey();
     if (!apiKey) {
       setAiInsight('Please add your API Key in Settings to enable the AI Dietitian.');
       return;
@@ -135,7 +135,7 @@ export function DietModule() {
   };
 
   const handleEndOfDayReview = async () => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = getLocalApiKey();
     if (!apiKey) {
       setAiInsight('Please add your API Key in Settings to enable the AI Dietitian.');
       return;

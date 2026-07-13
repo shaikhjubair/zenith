@@ -1,38 +1,13 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { X, Plus, Landmark, TrendingDown, Handshake, ShoppingCart, Briefcase, Zap, Car, UtensilsCrossed, Film, ArrowUp, Receipt, Settings2, Sparkles } from 'lucide-react';
 import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useStore } from '../useStore';
-import { STORES } from '../db';
+import { STORES, getLocalApiKey } from '../db';
+import { fetchGemini } from '../utils/gemini';
 
-const fetchGemini = async (prompt: string, key: string) => {
-  let model = 'gemini-1.5-flash';
-  let url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-  let response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
-  });
-  if (!response.ok) {
-    let errorData: any = {};
-    try { errorData = await response.json(); } catch(e) {}
-    if (errorData.error?.code === 404 || response.status === 404) {
-      model = 'gemini-1.5-pro';
-      url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
-      });
-      if (!response.ok) throw new Error(await response.text());
-    } else {
-      throw new Error(JSON.stringify(errorData));
-    }
-  }
-  const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
-};
+
 
 interface Expense {
   id?: number;
@@ -278,7 +253,7 @@ export function ExpenseModule() {
   }, [expenses]);
 
   const generateInsight = async () => {
-    const apiKey = localStorage.getItem('GEMINI_API_KEY');
+    const apiKey = getLocalApiKey();
     if (!apiKey) {
       setAiInsight('Please add your API Key in Settings to enable the AI Financial Advisor.');
       return;
