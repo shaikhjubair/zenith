@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Lock, 
@@ -36,6 +37,8 @@ const MODULES = [
 ];
 
 export function Sidebar({ activeModule, setActiveModule, isOpen, onClose }: SidebarProps) {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
   return (
     <>
       {/* Mobile Overlay */}
@@ -48,6 +51,47 @@ export function Sidebar({ activeModule, setActiveModule, isOpen, onClose }: Side
             onClick={onClose}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden"
           />
+        )}
+      </AnimatePresence>
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-md z-[9999] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-surface-container-high/80 border border-white/20 p-8 rounded-[32px] max-w-sm w-full shadow-2xl flex flex-col gap-6"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-error/20 flex items-center justify-center mx-auto mb-4 border border-error/30">
+                  <LogOut className="w-8 h-8 text-error" />
+                </div>
+                <h2 className="text-2xl font-bold text-on-surface mb-2">Sign Out of Zenith?</h2>
+                <p className="text-[16px] text-on-surface-variant">Are you sure you want to end your current session?</p>
+              </div>
+              <div className="flex gap-4 mt-2">
+                <button 
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-on-surface font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => signOut(auth)}
+                  className="flex-1 py-4 rounded-2xl bg-error text-white font-bold hover:bg-error/90 transition-colors shadow-lg shadow-error/20"
+                >
+                  Yes, Logout
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -93,9 +137,9 @@ export function Sidebar({ activeModule, setActiveModule, isOpen, onClose }: Side
         </nav>
       </div>
 
-        <div className="p-8 pb-12 md:pb-8">
+        <div className="p-8 pb-12 md:pb-8 relative">
           <button 
-            onClick={() => signOut(auth)}
+            onClick={() => setShowLogoutConfirm(true)}
             className="w-full py-3 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-error/20 hover:text-error hover:border-error/50 transition-all duration-300 flex items-center justify-center gap-2 text-on-surface text-[16px] glass-edge"
           >
             <LogOut className="w-5 h-5" />

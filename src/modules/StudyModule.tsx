@@ -12,10 +12,36 @@ interface StudyCourse {
   subtitle: string;
   icon: string;
   color: string;
-  topics?: { id: string; title: string; isDone: boolean; }[];
+  topics?: { id: string; title: string; isDone: boolean; term?: 'midterm' | 'final' }[];
+  syllabus?: {
+    term: 'midterm' | 'final';
+    chapterTitle: string;
+    subTopics: { id: string; title: string; isCompleted: boolean }[];
+  }[];
   notes?: { id: string; content: string; date: string; }[];
   exams?: { id: string; title: string; date: string; }[];
-  completedClasses?: number;
+  midtermClasses?: number;
+  finalClasses?: number;
+  completedClasses?: number; // legacy
+  term?: 'midterm' | 'final';
+  marksTracker?: {
+    midterm?: {
+      classTests?: number[];
+      missedClasses?: number;
+      assignment?: number;
+      midExam?: number;
+      finalExam?: number;
+      classPerformance?: number;
+    },
+    final?: {
+      classTests?: number[];
+      missedClasses?: number;
+      assignment?: number;
+      midExam?: number;
+      finalExam?: number;
+      classPerformance?: number;
+    }
+  };
   last_auto_increment_date?: string;
 }
 // SCHEDULE_DATA is now loaded dynamically from STORES.studySchedule
@@ -31,21 +57,32 @@ export const useCurrentTime = () => {
 
 export const getClassStatus = (timeStr: string, currentTime: Date) => {
   try {
-    const [start, end] = timeStr.split(' - ');
-    const parseTime = (t: string) => {
-      const match = t.match(/(\d+):(\d+)(AM|PM)/);
-      if (!match) return 0;
-      let h = parseInt(match[1]);
-      const m = parseInt(match[2]);
-      if (match[3] === 'PM' && h !== 12) h += 12;
-      if (match[3] === 'AM' && h === 12) h = 0;
-      return h * 60 + m;
+    const extractStartEndTimes = (str: string) => {
+      if (!str) return { startMins: -1, endMins: -1 };
+      const regex = /(\d{1,2})\D*(\d{2})\D*(AM|PM)/gi;
+      const matches = [...str.matchAll(regex)];
+      
+      if (matches.length === 0) return { startMins: -1, endMins: -1 };
+      
+      const parseMatch = (m: RegExpMatchArray) => {
+          let h = parseInt(m[1], 10);
+          let min = parseInt(m[2], 10);
+          let p = m[3].toUpperCase();
+          if (p === 'PM' && h !== 12) h += 12;
+          if (p === 'AM' && h === 12) h = 0;
+          return h * 60 + min;
+      };
+
+      const startMins = parseMatch(matches[0]);
+      const endMins = matches.length > 1 ? parseMatch(matches[matches.length - 1]) : startMins;
+
+      return { startMins, endMins };
     };
-    
-    const startMins = parseTime(start);
-    const endMins = parseTime(end);
+
+    const { startMins, endMins } = extractStartEndTimes(timeStr);
     const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
     
+    if (startMins === -1 || endMins === -1) return 'upcoming'; // parse failed
     if (nowMins > endMins) return 'ended';
     if (nowMins >= startMins && nowMins <= endMins) return 'active';
     return 'upcoming';
@@ -242,17 +279,127 @@ const TimerWidget = () => {
 export function StudyModule() {
   const currentTime = useCurrentTime();
   const [courses, actions, loading] = useStore<StudyCourse>(STORES.studyCourses);
-  const [studySchedule] = useStore<any>(STORES.studySchedule);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
-  const [courseToDelete, setCourseToDelete] = useState<number | null>(null);
+  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [topicToDelete, setTopicToDelete] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'topics' | 'notes' | 'exams'>('topics');
-
+  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'topics' | 'notes' | 'exams' | 'marks'>('topics');
+  const [studySchedule, scheduleActions] = useStore<any>(STORES.studySchedule);
+  
   const [newTopic, setNewTopic] = useState('');
   const [newNote, setNewNote] = useState('');
   const [newExamTitle, setNewExamTitle] = useState('');
   const [newExamDate, setNewExamDate] = useState('');
+
+  // AUTO-SEED OOP COURSES
+  useEffect(() => {
+    // Only run on mount
+    const currentCourses = JSON.parse(localStorage.getItem(STORES.studyCourses) || '[]');
+    let hasChanges = false;
+    const updatedCourses = [...currentCourses];
+
+    // 1. Check and Seed CSE 1115 (Theory)
+    if (!updatedCourses.some(c => c.title.includes('CSE 1115'))) {
+      hasChanges = true;
+      updatedCourses.push({
+        id: 'cse-1115-' + Date.now(),
+        title: 'CSE 1115: Object Oriented Programming',
+        subtitle: 'OOP Theory',
+        icon: 'Code2',
+        color: 'primary',
+        isLab: false,
+        attendedClasses: 0,
+        schedule: [
+          { day: 'Tue', time: '03:11 PM - 04:30 PM', room: '305' },
+          { day: 'Sat', time: '03:11 PM - 04:30 PM', room: '305' }
+        ],
+        syllabus: [
+          { term: 'Midterm', chapterTitle: 'Ch 2 & 3: Intro & Objects', subTopics: [
+            { id: 'th-1', title: '2.1-2.5 Basic Syntax & Data Types', isCompleted: false },
+            { id: 'th-2', title: '3.1-3.4 Classes, Objects & Methods', isCompleted: false },
+            { id: 'th-3', title: '3.5-3.6 Constructors & Floats', isCompleted: false }
+          ]},
+          { term: 'Midterm', chapterTitle: 'Ch 4 & 5: Control Statements', subTopics: [
+            { id: 'th-4', title: '4.1-4.8 if, while & Assignment', isCompleted: false },
+            { id: 'th-5', title: '5.1-5.8 for, switch, break', isCompleted: false }
+          ]},
+          { term: 'Midterm', chapterTitle: 'Ch 6: Methods Deep Dive', subTopics: [
+            { id: 'th-6', title: '6.1-6.5 Static Methods & Math', isCompleted: false },
+            { id: 'th-7', title: '6.6-6.10 Scope & Overloading', isCompleted: false }
+          ]},
+          { term: 'Midterm', chapterTitle: 'Ch 7: Arrays & ArrayLists', subTopics: [
+            { id: 'th-8', title: '7.1-7.4 Declaring & Initializing Arrays', isCompleted: false },
+            { id: 'th-9', title: '7.5-7.11 Multidimensional Arrays', isCompleted: false }
+          ]},
+          { term: 'Final', chapterTitle: 'Ch 8: Classes Deep Dive', subTopics: [
+            { id: 'th-10', title: '8.1-8.8 Access, Overloaded Constructors', isCompleted: false },
+            { id: 'th-11', title: '8.9-8.14 Enums & Static Members', isCompleted: false }
+          ]},
+          { term: 'Final', chapterTitle: 'Ch 9: Inheritance', subTopics: [
+            { id: 'th-12', title: '9.1-9.4 Superclasses & Subclasses', isCompleted: false },
+            { id: 'th-13', title: '9.5-9.8 Constructors & Object Class', isCompleted: false }
+          ]},
+          { term: 'Final', chapterTitle: 'Ch 10: Polymorphism & Interfaces', subTopics: [
+            { id: 'th-14', title: '10.1-10.4 Abstract Classes & Methods', isCompleted: false },
+            { id: 'th-15', title: '10.5-10.8 Interfaces', isCompleted: false }
+          ]},
+          { term: 'Final', chapterTitle: 'Ch 11: Exception Handling', subTopics: [
+            { id: 'th-16', title: '11.1-11.4 Try, Catch, Finally', isCompleted: false },
+            { id: 'th-17', title: '11.5-11.8 Throwing & Chained Exceptions', isCompleted: false }
+          ]}
+        ]
+      });
+    }
+
+    // 2. Check and Seed CSE 1116 (Lab)
+    if (!updatedCourses.some(c => c.title.includes('CSE 1116'))) {
+      hasChanges = true;
+      updatedCourses.push({
+        id: 'cse-1116-' + Date.now(),
+        title: 'CSE 1116: OOP Laboratory',
+        subtitle: 'OOP Lab',
+        icon: 'Code2',
+        color: 'secondary',
+        isLab: true,
+        attendedClasses: 0,
+        schedule: [
+          { day: 'Tue', time: '08:30 AM - 11:00 AM', room: '426' }
+        ],
+        syllabus: [
+          { term: 'Midterm', chapterTitle: 'Lab 1-2: Java Basics', subTopics: [
+            { id: 'lab-1', title: 'IDE Setup, Print & Data Types', isCompleted: false },
+            { id: 'lab-2', title: 'Operators & Scanner I/O', isCompleted: false }
+          ]},
+          { term: 'Midterm', chapterTitle: 'Lab 3-4: Classes & Control', subTopics: [
+            { id: 'lab-3', title: 'Instantiating Objects & Basic Methods', isCompleted: false },
+            { id: 'lab-4', title: 'If-Else, Switch, For & While Loops', isCompleted: false }
+          ]},
+          { term: 'Midterm', chapterTitle: 'Lab 5-6: Methods & Arrays', subTopics: [
+            { id: 'lab-5', title: 'Method Overloading & Static Variables', isCompleted: false },
+            { id: 'lab-6', title: '1D/2D Arrays, Searching & Sorting', isCompleted: false }
+          ]},
+          { term: 'Final', chapterTitle: 'Lab 7-8: Advanced OOP', subTopics: [
+            { id: 'lab-7', title: 'Constructors, Encapsulation & Composition', isCompleted: false },
+            { id: 'lab-8', title: 'Inheritance & Method Overriding', isCompleted: false }
+          ]},
+          { term: 'Final', chapterTitle: 'Lab 9-10: Polymorphism', subTopics: [
+            { id: 'lab-9', title: 'Abstract Classes & Dynamic Dispatch', isCompleted: false },
+            { id: 'lab-10', title: 'Implementing Multiple Interfaces', isCompleted: false }
+          ]},
+          { term: 'Final', chapterTitle: 'Lab 11-12: Exceptions & I/O', subTopics: [
+            { id: 'lab-11', title: 'Try-Catch & Custom Exceptions', isCompleted: false },
+            { id: 'lab-12', title: 'File I/O (Read/Write)', isCompleted: false }
+          ]}
+        ]
+      });
+    }
+
+    // 3. Save if new courses were added
+    if (hasChanges) {
+      localStorage.setItem(STORES.studyCourses, JSON.stringify(updatedCourses));
+      window.dispatchEvent(new CustomEvent('zenith-store-update', { detail: STORES.studyCourses }));
+    }
+  }, []);
 
   useEffect(() => {
     if (loading || !courses.length) return;
@@ -261,7 +408,9 @@ export function StudyModule() {
     const todayStamp = currentTime.toLocaleDateString('en-CA');
 
     courses.forEach(course => {
-      const todayClassesForCourse = (studySchedule || []).filter((s: any) => s.day === todayStr && isCourseMatch(s.course, course.title));
+      const globalClasses = (studySchedule || []).filter((s: any) => s.day === todayStr && s.course === course.title);
+      const courseLocalClasses = (course.schedule || []).filter((s: any) => s.day === todayStr);
+      const todayClassesForCourse = courseLocalClasses.length > 0 ? courseLocalClasses : globalClasses;
       const endedClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'ended');
       
       if (endedClass && course.last_auto_increment_date !== todayStamp) {
@@ -280,6 +429,8 @@ export function StudyModule() {
       }
     });
   }, [currentTime, courses, loading, actions]);
+
+
 
   if (loading) {
     return (
@@ -310,7 +461,8 @@ export function StudyModule() {
 
   const handleAddTopic = async () => {
     if (!activeCourse || !newTopic.trim() || activeCourse.id === undefined) return;
-    const topic = { id: Date.now().toString(), title: newTopic.trim(), isDone: false };
+    const term = activeCourse.term || 'midterm';
+    const topic = { id: Date.now().toString(), title: newTopic.trim(), isDone: false, term };
     const topics = [...(activeCourse.topics || []), topic];
     try {
       await actions.update(activeCourse.id, { topics });
@@ -324,6 +476,24 @@ export function StudyModule() {
     if (!activeCourse || activeCourse.id === undefined) return;
     const topics = (activeCourse.topics || []).map(t => t.id === topicId ? { ...t, isDone: !t.isDone } : t);
     actions.update(activeCourse.id, { topics });
+  };
+
+  const handleToggleSyllabusSubTopic = (chapterIndex: number, subTopicId: string) => {
+    if (!activeCourse || !activeCourse.syllabus || activeCourse.id === undefined) return;
+    const term = activeCourse.term || 'midterm';
+    
+    // Create a deep copy of the syllabus
+    const newSyllabus = JSON.parse(JSON.stringify(activeCourse.syllabus));
+    const termChapters = newSyllabus.filter((s: any) => s.term === term);
+    
+    if (termChapters[chapterIndex]) {
+      const subTopic = termChapters[chapterIndex].subTopics.find((st: any) => st.id === subTopicId);
+      if (subTopic) {
+        subTopic.isCompleted = !subTopic.isCompleted;
+      }
+    }
+    
+    actions.update(activeCourse.id, { syllabus: newSyllabus });
   };
 
   const handleAddNote = async () => {
@@ -360,15 +530,29 @@ export function StudyModule() {
           <button onClick={() => setActiveCourseId(null)} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-on-surface">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <div>
+          <div className="flex-1">
             <h2 className="text-4xl md:text-[40px] font-bold text-on-surface leading-none tracking-tight break-words">{activeCourse.title}</h2>
             <p className="text-primary mt-1">{activeCourse.subtitle}</p>
+          </div>
+          <div className="bg-surface-container/50 border border-white/10 rounded-full p-1 flex">
+            <button 
+              onClick={() => actions.update(activeCourse.id!, { term: 'midterm' })}
+              className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest transition-colors ${(!activeCourse.term || activeCourse.term === 'midterm') ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'text-on-surface-variant hover:text-on-surface'}`}
+            >
+              Midterm
+            </button>
+            <button 
+              onClick={() => actions.update(activeCourse.id!, { term: 'final' })}
+              className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-widest transition-colors ${activeCourse.term === 'final' ? 'bg-secondary text-on-primary shadow-lg shadow-secondary/20' : 'text-on-surface-variant hover:text-on-surface'}`}
+            >
+              Final
+            </button>
           </div>
         </div>
 
         <div className="bg-surface-container/30 rounded-[32px] overflow-hidden border border-white/5 glass-edge shadow-lg flex flex-col w-full">
           <div className="flex border-b border-white/5 w-full overflow-x-auto">
-            {['topics', 'notes', 'exams'].map((tab) => (
+            {['topics', 'notes', 'exams', 'marks'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -384,53 +568,119 @@ export function StudyModule() {
           <div className="p-8 min-h-[400px]">
             {activeTab === 'topics' && (
               <div className="flex flex-col gap-6">
-                {activeCourse.topics && activeCourse.topics.length > 0 && (
-                  <div className="flex flex-col gap-2 mb-2">
-                    <div className="flex justify-between items-center text-sm font-semibold uppercase tracking-widest text-on-surface-variant">
-                      <span>Progress</span>
-                      <span className="text-primary">{Math.round((activeCourse.topics.filter(t => t.isDone).length / activeCourse.topics.length) * 100)}%</span>
-                    </div>
-                    <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden shadow-inner border border-white/5">
-                      <div className="bg-primary h-full transition-all duration-1000 shadow-[0_0_10px_rgba(255,255,255,0.2)] relative" style={{ width: `${(activeCourse.topics.filter(t => t.isDone).length / activeCourse.topics.length) * 100}%` }}>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20"></div>
+                {(() => {
+                  const currentTerm = activeCourse.term || 'midterm';
+                  const hasSyllabus = activeCourse.syllabus && activeCourse.syllabus.length > 0;
+                  
+                  let completedCount = 0;
+                  let totalCount = 0;
+                  let termTopics: any[] = (activeCourse.topics || []).filter((t: any) => !t.term || t.term === currentTerm);
+                  let termSyllabus: any[] = [];
+                  
+                  completedCount = termTopics.filter((t: any) => t.isDone).length;
+                  totalCount = termTopics.length;
+                  
+                  if (hasSyllabus) {
+                    termSyllabus = activeCourse.syllabus!.filter((s: any) => s.term === currentTerm);
+                    termSyllabus.forEach((chapter: any) => {
+                      totalCount += chapter.subTopics.length;
+                      completedCount += chapter.subTopics.filter((st: any) => st.isCompleted).length;
+                    });
+                  }
+                  
+                  return (
+                    <>
+                      {totalCount > 0 && (
+                        <div className="flex flex-col gap-2 mb-2">
+                          <div className="flex justify-between items-center text-sm font-semibold uppercase tracking-widest text-on-surface-variant">
+                            <span>Syllabus Progress ({currentTerm})</span>
+                            <span className={currentTerm === 'midterm' ? 'text-primary' : 'text-secondary'}>{Math.round((completedCount / totalCount) * 100)}%</span>
+                          </div>
+                          <div className="w-full bg-black/20 rounded-full h-2 overflow-hidden shadow-inner border border-white/5">
+                            <div className={`${currentTerm === 'midterm' ? 'bg-primary shadow-[0_0_10px_rgba(255,255,255,0.2)]' : 'bg-secondary shadow-[0_0_10px_rgba(255,255,255,0.2)]'} h-full transition-all duration-1000 relative`} style={{ width: `${(completedCount / totalCount) * 100}%` }}>
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/20"></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <form onSubmit={(e) => { e.preventDefault(); handleAddTopic(); }} className="flex flex-col sm:flex-row flex-wrap gap-4 mb-4">
+                        <input
+                          type="text"
+                          value={newTopic}
+                          onChange={(e) => setNewTopic(e.target.value)}
+                          placeholder={`New topic for ${currentTerm}...`}
+                          className={`flex-1 w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-on-surface outline-none transition-colors ${currentTerm === 'midterm' ? 'focus:border-primary/50' : 'focus:border-secondary/50'}`}
+                        />
+                        <button type="submit" className={`w-full sm:w-auto px-6 py-3 rounded-xl text-on-primary font-medium transition-colors flex items-center justify-center gap-2 ${currentTerm === 'midterm' ? 'bg-primary hover:bg-primary/90' : 'bg-secondary hover:bg-secondary/90'}`}>
+                          <Plus className="w-5 h-5" /> Add
+                        </button>
+                      </form>
+
+                      <div className="flex flex-col gap-4">
+                        {hasSyllabus && (
+                          <div className="mt-6 space-y-6 w-full">
+                            {termSyllabus.map((chapter: any, chapterIndex: number) => (
+                              <div key={chapterIndex} className="bg-surface-container-low/30 p-4 rounded-2xl border border-white/5 w-full">
+                                {/* Chapter Title */}
+                                <h4 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: currentTerm === 'midterm' ? 'rgba(var(--primary-rgb), 1)' : 'rgba(var(--secondary-rgb), 1)' }}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${currentTerm === 'midterm' ? 'bg-primary' : 'bg-secondary'}`}></span>
+                                  {chapter.chapterTitle}
+                                </h4>
+                                
+                                {/* Sub-Topics List */}
+                                <div className="space-y-2 pl-3 border-l-2 border-white/10 ml-[3px] w-full">
+                                  {chapter.subTopics && chapter.subTopics.map((subTopic: any) => (
+                                    <div 
+                                      key={subTopic.id} 
+                                      onClick={() => handleToggleSyllabusSubTopic(chapterIndex, subTopic.id)}
+                                      className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group w-full"
+                                    >
+                                      {/* Checkbox */}
+                                      <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors shrink-0 ${subTopic.isCompleted ? (currentTerm === 'midterm' ? 'bg-primary border-primary text-on-primary' : 'bg-secondary border-secondary text-on-primary') : `border-gray-500 border group-hover:border-${currentTerm === 'midterm' ? 'primary' : 'secondary'}/50`}`}>
+                                        {subTopic.isCompleted && (
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        )}
+                                      </div>
+                                      {/* Topic Title */}
+                                      <span className={`text-sm transition-all flex-1 ${subTopic.isCompleted ? 'text-gray-500 line-through' : 'text-gray-200 group-hover:text-white'}`}>
+                                        {subTopic.title}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {termTopics.length > 0 && (
+                          <div className={hasSyllabus ? "mt-4 space-y-2 w-full pt-4 border-t border-white/10" : "space-y-2 w-full"}>
+                            {termTopics.map((topic: any) => (
+                              <div key={topic.id} className={`flex items-center gap-4 p-4 rounded-xl border border-white/5 bg-white/5 transition-all group ${topic.isDone ? 'opacity-50' : ''}`}>
+                                <button 
+                                  onClick={() => handleToggleTopic(topic.id)}
+                                  className={`w-6 h-6 rounded border flex items-center justify-center transition-colors shrink-0 ${topic.isDone ? (currentTerm === 'midterm' ? 'bg-primary border-primary text-on-primary' : 'bg-secondary border-secondary text-on-primary') : `border-white/20 hover:border-${currentTerm === 'midterm' ? 'primary' : 'secondary'}/50 text-transparent`}`}
+                                >
+                                  <svg className={`w-4 h-4 ${topic.isDone ? 'block' : 'hidden'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <span className={`text-[16px] flex-1 ${topic.isDone ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{topic.title}</span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setTopicToDelete(topic.id); }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg hover:bg-red-500/20 flex items-center justify-center text-on-surface-variant hover:text-red-400 shrink-0"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {totalCount === 0 && (
+                          <p className="text-on-surface-variant/50 text-center py-8">No topics added for {currentTerm} yet.</p>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                )}
-                <form onSubmit={(e) => { e.preventDefault(); handleAddTopic(); }} className="flex flex-col sm:flex-row flex-wrap gap-4">
-                  <input
-                    type="text"
-                    value={newTopic}
-                    onChange={(e) => setNewTopic(e.target.value)}
-                    placeholder="New topic to study..."
-                    className="flex-1 w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-on-surface outline-none focus:border-primary/50 transition-colors"
-                  />
-                  <button type="submit" className="w-full sm:w-auto px-6 py-3 rounded-xl bg-primary text-on-primary font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-                    <Plus className="w-5 h-5" /> Add
-                  </button>
-                </form>
-                <div className="flex flex-col gap-3">
-                  {(activeCourse.topics || []).map(topic => (
-                    <div key={topic.id} className={`flex items-center gap-4 p-4 rounded-xl border border-white/5 bg-white/5 transition-all group ${topic.isDone ? 'opacity-50' : ''}`}>
-                      <button 
-                        onClick={() => handleToggleTopic(topic.id)}
-                        className={`w-6 h-6 rounded border flex items-center justify-center transition-colors shrink-0 ${topic.isDone ? 'bg-primary border-primary text-on-primary' : 'border-white/20 hover:border-primary/50 text-transparent'}`}
-                      >
-                        <svg className={`w-4 h-4 ${topic.isDone ? 'block' : 'hidden'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                      </button>
-                      <span className={`text-[16px] flex-1 ${topic.isDone ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{topic.title}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setTopicToDelete(topic.id); }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg hover:bg-red-500/20 flex items-center justify-center text-on-surface-variant hover:text-red-400 shrink-0"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  {(!activeCourse.topics || activeCourse.topics.length === 0) && (
-                    <p className="text-on-surface-variant/50 text-center py-8">No topics added yet.</p>
-                  )}
-                </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -501,6 +751,102 @@ export function StudyModule() {
                 </div>
               </div>
             )}
+            {activeTab === 'marks' && (() => {
+              const currentTerm = activeCourse.term || 'midterm';
+              const marks = activeCourse.marksTracker?.[currentTerm] || { classTests: [], missedClasses: 0, assignment: 0, midExam: 0, finalExam: 0, classPerformance: 0 };
+              const isLab = activeCourse.title.toLowerCase().includes('lab') || activeCourse.title.toLowerCase().includes('laboratory');
+              
+              const updateMarks = (field: string, value: any) => {
+                const newMarks: any = { ...activeCourse.marksTracker };
+                if (!newMarks[currentTerm]) newMarks[currentTerm] = { classTests: [], missedClasses: 0, assignment: 0, midExam: 0, finalExam: 0, classPerformance: 0 };
+                newMarks[currentTerm][field] = value;
+                actions.update(activeCourse.id!, { marksTracker: newMarks });
+              };
+
+              let totalMarks = 0;
+              let attendanceScore = 5;
+              const missed = marks.missedClasses || 0;
+
+              if (isLab) {
+                if (missed >= 5) attendanceScore = 3;
+                else if (missed >= 3) attendanceScore = 4;
+                
+                totalMarks += (marks.classPerformance || 0) + attendanceScore + (marks.assignment || 0) + ((marks.classTests && marks.classTests[0]) || 0) + (marks.midExam || 0) + (marks.finalExam || 0);
+              } else {
+                if (missed >= 4) attendanceScore = 4;
+                
+                const cts = [...(marks.classTests || [])].map(v => Number(v) || 0).sort((a,b) => b - a).slice(0, 3);
+                const ctSum = cts.reduce((a,b) => a + b, 0);
+                
+                totalMarks += ctSum + attendanceScore + (marks.assignment || 0) + (marks.midExam || 0) + (marks.finalExam || 0);
+              }
+
+              const InputRow = ({ label, value, onChange, max }: any) => (
+                <div className="flex justify-between items-center py-3 border-b border-white/5 last:border-0">
+                  <span className="text-on-surface-variant font-medium">{label} <span className="text-[10px] text-on-surface-variant/50 ml-1">(Max {max})</span></span>
+                  <input type="number" min="0" max={max} value={value || ''} onChange={e => onChange(Number(e.target.value))} className="w-20 bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-on-surface text-center outline-none focus:border-primary/50 transition-colors" />
+                </div>
+              );
+
+              return (
+                <div className="flex flex-col md:flex-row gap-8">
+                  <div className="flex-1 bg-surface-container-low/50 rounded-2xl p-6 border border-white/5 shadow-inner">
+                    <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
+                      <Calculator className="w-5 h-5 text-primary" />
+                      {isLab ? 'Lab' : 'Theory'} Assessment
+                    </h3>
+                    
+                    <div className="flex flex-col">
+                      {isLab && <InputRow label="Class Performance" max={30} value={marks.classPerformance} onChange={(v: number) => updateMarks('classPerformance', v)} />}
+                      
+                      <div className="flex justify-between items-center py-3 border-b border-white/5">
+                        <span className="text-on-surface-variant font-medium">Missed Classes <span className="text-[10px] text-on-surface-variant/50 ml-1">(Score: {attendanceScore}/5)</span></span>
+                        <input type="number" min="0" value={marks.missedClasses || ''} onChange={e => updateMarks('missedClasses', Number(e.target.value))} className="w-20 bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-on-surface text-center outline-none focus:border-primary/50 transition-colors" />
+                      </div>
+
+                      <InputRow label="Assignment" max={5} value={marks.assignment} onChange={(v: number) => updateMarks('assignment', v)} />
+                      
+                      {isLab ? (
+                        <InputRow label="Class Test" max={20} value={marks.classTests?.[0]} onChange={(v: number) => updateMarks('classTests', [v])} />
+                      ) : (
+                        <div className="py-3 border-b border-white/5">
+                          <span className="text-on-surface-variant font-medium mb-3 block">Class Tests <span className="text-[10px] text-on-surface-variant/50 ml-1">(Best 3 of 4, Max 20)</span></span>
+                          <div className="grid grid-cols-4 gap-2">
+                            {[0, 1, 2, 3].map(i => (
+                              <input key={i} type="number" min="0" max="20" placeholder={`CT${i+1}`} value={marks.classTests?.[i] ?? ''} 
+                                onChange={e => {
+                                  const newCts = [...(marks.classTests || [])];
+                                  newCts[i] = Number(e.target.value);
+                                  updateMarks('classTests', newCts);
+                                }} 
+                                className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-on-surface text-center outline-none focus:border-primary/50 transition-colors" 
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <InputRow label="Mid Exam" max={isLab ? 20 : 30} value={marks.midExam} onChange={(v: number) => updateMarks('midExam', v)} />
+                      <InputRow label="Final Exam" max={isLab ? 20 : 40} value={marks.finalExam} onChange={(v: number) => updateMarks('finalExam', v)} />
+                    </div>
+                  </div>
+
+                  <div className="w-full md:w-64 shrink-0 flex flex-col gap-4">
+                    <div className="bg-gradient-to-br from-surface-container to-surface-container-high rounded-2xl p-6 border border-white/10 shadow-xl flex flex-col items-center justify-center relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl rounded-full"></div>
+                      <h4 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-2 relative z-10">Total Marks</h4>
+                      <div className="flex items-baseline gap-1 relative z-10">
+                        <span className={`text-6xl font-black ${totalMarks >= 80 ? 'text-green-400' : totalMarks >= 60 ? 'text-primary' : 'text-on-surface'}`}>{totalMarks}</span>
+                        <span className="text-on-surface-variant text-xl font-bold">/100</span>
+                      </div>
+                      <div className="mt-4 text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full bg-black/20 text-on-surface-variant border border-white/5">
+                        {currentTerm} Term
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -563,27 +909,64 @@ export function StudyModule() {
                     const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                     const todayStr = daysMap[currentTime.getDay()];
                     
-                    const todayClassesForCourse = (studySchedule || []).filter((s: any) => s.day === todayStr && isCourseMatch(s.course, course.title));
+                    const globalClasses = (studySchedule || []).filter((s: any) => s.day === todayStr && s.course === course.title);
+                    const courseLocalClasses = (course.schedule || []).filter((s: any) => s.day === todayStr);
+                    const todayClassesForCourse = courseLocalClasses.length > 0 ? courseLocalClasses : globalClasses;
 
-                    const activeClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'active');
-                    const upcomingClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'upcoming');
-                    const endedClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'ended');
+                    const currentTimeMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+                    const extractStartEndTimes = (timeStr: string) => {
+                      if (!timeStr) return { startMins: -1, endMins: -1 };
+                      const regex = /(\d{1,2})\D*(\d{2})\D*(AM|PM)/gi;
+                      const matches = [...timeStr.matchAll(regex)];
+                      
+                      if (matches.length === 0) return { startMins: -1, endMins: -1 };
+                      
+                      const parseMatch = (m: RegExpMatchArray) => {
+                          let h = parseInt(m[1], 10);
+                          let min = parseInt(m[2], 10);
+                          let p = m[3].toUpperCase();
+                          if (p === 'PM' && h !== 12) h += 12;
+                          if (p === 'AM' && h === 12) h = 0;
+                          return h * 60 + min;
+                      };
+
+                      const startMins = parseMatch(matches[0]);
+                      const endMins = matches.length > 1 ? parseMatch(matches[matches.length - 1]) : startMins;
+
+                      return { startMins, endMins };
+                    };
+
+                    let classStatus: 'ongoing' | 'upcoming' | 'completed' | null = null;
+                    
+                    todayClassesForCourse.forEach((s: any) => {
+                      const { startMins, endMins } = extractStartEndTimes(s.time);
+                      
+                      if (startMins !== -1 && endMins !== -1) {
+                        if (currentTimeMinutes >= startMins && currentTimeMinutes <= endMins) {
+                          classStatus = 'ongoing';
+                        } else if (currentTimeMinutes < startMins && classStatus !== 'ongoing') {
+                          classStatus = 'upcoming';
+                        } else if (currentTimeMinutes > endMins && classStatus !== 'ongoing' && classStatus !== 'upcoming') {
+                          classStatus = 'completed';
+                        }
+                      }
+                    });
 
                     let badgeUI = null;
-                    if (activeClass) {
+                    if (classStatus === 'ongoing') {
                        badgeUI = (
                           <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
                             Class Now
                           </span>
                        );
-                    } else if (upcomingClass) {
+                    } else if (classStatus === 'upcoming') {
                        badgeUI = (
                           <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary/20 border border-secondary/30 text-secondary text-[10px] font-bold uppercase tracking-widest">
                             Upcoming Today
                           </span>
                        );
-                    } else if (endedClass) {
+                    } else if (classStatus === 'completed') {
                        badgeUI = (
                           <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-on-surface-variant/50 text-[10px] font-bold uppercase tracking-widest">
                             Class Ended
@@ -591,14 +974,30 @@ export function StudyModule() {
                        );
                     }
 
-                    const totalTopics = course.topics?.length || 0;
-                    const completedTopics = course.topics?.filter(t => t.isDone).length || 0;
-                    const topicProgressPercent = totalTopics === 0 ? 0 : Math.min((completedTopics / totalTopics) * 100, 100);
+                    const currentTerm = course.term || 'midterm';
+                    
+                    // Calculate Attendance Percentage
+                    const maxClasses = course.isLab ? 12 : 24;
+                    const attendedCount = course.attendedClasses || course.completedClasses || 0;
+                    const attendancePercentage = Math.min(100, Math.max(0, (attendedCount / maxClasses) * 100));
 
-                    const isLab = course.title.toLowerCase().includes('lab') || course.title.toLowerCase().includes('laboratory');
-                    const totalClasses = isLab ? 12 : 24;
-                    const completedClasses = course.completedClasses || 0;
-                    const classProgressPercent = Math.min((completedClasses / totalClasses) * 100, 100);
+                    // Calculate Syllabus Percentage (assuming course.syllabus holds the topics)
+                    let totalTopics = 0;
+                    let completedTopics = 0;
+                    if (course.syllabus && course.syllabus.length > 0) {
+                      // If syllabus has nested subTopics
+                      course.syllabus.forEach((chapter: any) => {
+                        if (chapter.subTopics) {
+                          totalTopics += chapter.subTopics.length;
+                          completedTopics += chapter.subTopics.filter((topic: any) => topic.isCompleted).length;
+                        }
+                      });
+                    } else {
+                      const termTopics = (course.topics || []).filter((t: any) => !t.term || t.term === currentTerm);
+                      totalTopics = termTopics.length;
+                      completedTopics = termTopics.filter((t: any) => t.isDone).length;
+                    }
+                    const syllabusPercentage = totalTopics === 0 ? 0 : Math.min(100, Math.max(0, (completedTopics / totalTopics) * 100));
 
                     return (
                     <div
@@ -631,26 +1030,27 @@ export function StudyModule() {
                       <div className="flex flex-col gap-4 mt-2">
                         <div className="flex flex-col gap-1.5">
                           <div className="flex justify-between items-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
-                             <span>Syllabus Progress</span>
+                             <span>Syllabus Progress ({currentTerm})</span>
                              <span>{completedTopics} / {totalTopics} Topics</span>
                           </div>
                           <div className="w-full bg-black/20 rounded-full h-1.5 overflow-hidden shadow-inner">
-                             <div className={`bg-${course.color} opacity-70 h-full transition-all duration-500`} style={{ width: `${topicProgressPercent}%` }}></div>
+                             <div className={`bg-${course.color}-500 bg-${course.color} opacity-70 h-full transition-all duration-500`} style={{ width: `${syllabusPercentage}%`, backgroundColor: course.color === 'green' ? '#22c55e' : course.color === 'yellow' ? '#eab308' : course.color === 'blue' ? '#3b82f6' : course.color === 'red' ? '#ef4444' : course.color === 'purple' ? '#a855f7' : '' }}></div>
                           </div>
                         </div>
 
                         <div className="flex flex-col gap-1.5 pt-2 border-t border-white/5">
                           <div className="flex justify-between items-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
-                             <span className="flex items-center gap-1">Class Attendance <span className="text-[9px] lowercase opacity-50">(Oct 22)</span></span>
+                             <span className="flex items-center gap-1">Attendance <span className="text-[9px] lowercase opacity-50">(Oct 22)</span></span>
                              <div className="flex items-center gap-1.5">
-                               <span>{completedClasses} / {totalClasses}</span>
+                               <span>{attendedCount} / {maxClasses}</span>
                                <div className="flex items-center gap-0.5 ml-1">
                                  <button 
                                    onClick={(e) => { 
                                      e.stopPropagation(); 
-                                     actions.update(course.id!, { completedClasses: Math.max(0, completedClasses - 1) }) 
+                                     const newVal = Math.max(0, attendedCount - 1);
+                                     actions.update(course.id!, { attendedClasses: newVal, completedClasses: newVal });
                                    }}
-                                   disabled={completedClasses <= 0}
+                                   disabled={attendedCount <= 0}
                                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center text-on-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                  >
                                    <Minus className="w-3 h-3" />
@@ -658,9 +1058,10 @@ export function StudyModule() {
                                  <button 
                                    onClick={(e) => { 
                                      e.stopPropagation(); 
-                                     actions.update(course.id!, { completedClasses: Math.min(totalClasses, completedClasses + 1) }) 
+                                     const newVal = Math.min(maxClasses, attendedCount + 1);
+                                     actions.update(course.id!, { attendedClasses: newVal, completedClasses: newVal });
                                    }}
-                                   disabled={completedClasses >= totalClasses}
+                                   disabled={attendedCount >= maxClasses}
                                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center text-on-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                                  >
                                    <Plus className="w-3 h-3" />
@@ -669,7 +1070,7 @@ export function StudyModule() {
                              </div>
                           </div>
                           <div className="w-full bg-black/20 rounded-full h-1.5 overflow-hidden shadow-inner">
-                             <div className={`bg-${course.color} h-full transition-all duration-500`} style={{ width: `${classProgressPercent}%` }}></div>
+                             <div className={`bg-${course.color}-500 bg-${course.color} h-full transition-all duration-500`} style={{ width: `${attendancePercentage}%`, backgroundColor: course.color === 'green' ? '#22c55e' : course.color === 'yellow' ? '#eab308' : course.color === 'blue' ? '#3b82f6' : course.color === 'red' ? '#ef4444' : course.color === 'purple' ? '#a855f7' : '' }}></div>
                           </div>
                         </div>
                       </div>
@@ -699,20 +1100,51 @@ export function StudyModule() {
           message="Are you sure you want to delete this topic?"
         />
 
+        <ConfirmModal
+          isOpen={courseToDelete !== null}
+          onClose={() => setCourseToDelete(null)}
+          onConfirm={() => {
+            if (courseToDelete) {
+              actions.remove(courseToDelete);
+              if (activeCourseId === courseToDelete) setActiveCourseId(null);
+            }
+            setCourseToDelete(null);
+          }}
+          title="Delete Course"
+          message="Delete this course? All syllabus and marks data will be lost."
+        />
+
         <FormModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onSubmit={async (data) => {
+            const courseTitle = data.title as string;
             await actions.add({
-              title: data.title as string,
+              title: courseTitle,
               subtitle: data.subtitle as string,
               icon: data.icon as string,
               color: data.color as string,
               topics: [],
               notes: [],
               exams: [],
+              midtermClasses: 0,
+              finalClasses: 0,
               completedClasses: 0,
+              term: 'midterm',
+              marksTracker: {
+                midterm: { classTests: [], missedClasses: 0, assignment: 0, midExam: 0, classPerformance: 0 },
+                final: { classTests: [], missedClasses: 0, assignment: 0, finalExam: 0, classPerformance: 0 }
+              }
             });
+            if (data.scheduleDay && data.scheduleStartTime && data.scheduleEndTime) {
+              await scheduleActions.add({
+                course: courseTitle,
+                day: data.scheduleDay as string,
+                time: `${data.scheduleStartTime} - ${data.scheduleEndTime}`,
+                room: (data.scheduleRoom as string) || 'TBA',
+                type: courseTitle.toLowerCase().includes('lab') || courseTitle.toLowerCase().includes('laboratory') ? 'Lab' : 'Theory'
+              });
+            }
             setShowAddModal(false);
           }}
           title="Add Course"
@@ -745,6 +1177,25 @@ export function StudyModule() {
                 { value: 'tertiary', label: 'Tertiary' },
               ],
             },
+            {
+              name: 'scheduleDay',
+              label: 'Schedule Day',
+              type: 'select',
+              required: false,
+              defaultValue: 'Sun',
+              options: [
+                { value: 'Sun', label: 'Sunday' },
+                { value: 'Mon', label: 'Monday' },
+                { value: 'Tue', label: 'Tuesday' },
+                { value: 'Wed', label: 'Wednesday' },
+                { value: 'Thu', label: 'Thursday' },
+                { value: 'Fri', label: 'Friday' },
+                { value: 'Sat', label: 'Saturday' },
+              ],
+            },
+            { name: 'scheduleStartTime', label: 'Start Time', type: 'text', required: false, placeholder: 'e.g. 10:00AM' },
+            { name: 'scheduleEndTime', label: 'End Time', type: 'text', required: false, placeholder: 'e.g. 11:30AM' },
+            { name: 'scheduleRoom', label: 'Room', type: 'text', required: false, placeholder: 'e.g. 302' },
           ]}
         />
       </motion.div>

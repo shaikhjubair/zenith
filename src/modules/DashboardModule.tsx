@@ -37,132 +37,70 @@ class DashboardErrorBoundary extends React.Component<any, { hasError: boolean }>
 }
 
 const notifyUser = (title: string, body: string) => {
-  if (typeof Notification === 'undefined') return;
-  if (Notification.permission === 'granted') {
-    new Notification(title, { body, icon: '/logo.png' });
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        new Notification(title, { body, icon: '/logo.png' });
-      }
-    });
+  try {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(title, { body });
+        }
+      });
+    }
+  } catch (err) {
+    console.error("Notification Error:", err);
   }
 };
 
-const SmartClassCard = ({ cls, currentTime }: any) => {
-  const [isActive, setIsActive] = useState(false);
-
-  const parseTime = (t: string) => {
-    const match = t.match(/(\d+):(\d+)(AM|PM)/);
-    if (!match) return 0;
-    let h = parseInt(match[1], 10);
-    const m = parseInt(match[2], 10);
-    if (match[3] === 'PM' && h !== 12) h += 12;
-    if (match[3] === 'AM' && h === 12) h = 0;
-    return h * 60 + m;
-  };
-
-  const startStr = cls.time.split(' - ')[0];
-  const startMins = parseTime(startStr);
-  const endMins = startMins + cls.duration;
-  
-  const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
-  const nowSecs = nowMins * 60 + currentTime.getSeconds();
-  
-  const startSecs = startMins * 60;
-  const endSecs = endMins * 60;
-
-  let displayTime = "00:00";
-  let statusText = "";
-  const isEnded = nowSecs >= endSecs;
-  
-  if (isEnded) {
-    displayTime = "00:00";
-    statusText = "Ended";
-  } else if (isActive) {
-    if (nowSecs < startSecs) {
-      const remaining = startSecs - nowSecs;
-      const m = Math.floor(remaining / 60).toString().padStart(2, '0');
-      const s = (remaining % 60).toString().padStart(2, '0');
-      displayTime = `${m}:${s}`;
-      statusText = "Starts in";
-    } else {
-      const remaining = endSecs - nowSecs;
-      const m = Math.floor(remaining / 60).toString().padStart(2, '0');
-      const s = (remaining % 60).toString().padStart(2, '0');
-      displayTime = `${m}:${s}`;
-      statusText = "Remaining";
-    }
-  } else {
-    displayTime = `${cls.duration}:00`;
-    statusText = "Duration";
-  }
-
-  useEffect(() => {
-    if (!isActive && (startMins - nowMins) <= 15 && nowMins < endMins) {
-      setIsActive(true);
-    }
-  }, [nowMins, startMins, endMins, isActive]);
-
-  const notifiedMinsRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    try {
-      const remaining = startSecs - nowSecs;
-      if (isActive && !isEnded && (remaining === 300 || remaining === 0)) {
-        if (notifiedMinsRef.current !== remaining && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          notifiedMinsRef.current = remaining;
-          const title = remaining === 300 ? "Class Starting Soon!" : "Class Starting!";
-          const body = `Your ${cls.type} class for ${cls.course} starts ${remaining === 300 ? 'in 5 minutes' : 'now'} in Room ${cls.room}.`;
-          notifyUser(title, body);
-        }
-      }
-    } catch (err) {
-      console.error("Dashboard Module Error:", err);
-    }
-  }, [isActive, isEnded, startSecs, nowSecs, cls]);
-
+const SmartClassCard = ({ cls }: any) => {
   return (
-    <div className={`bg-surface/60 backdrop-blur-xl border ${isActive && !isEnded ? 'border-primary/50 shadow-[0_0_20px_rgba(var(--primary-rgb),0.2)]' : 'border-white/20'} rounded-[32px] p-6 glass-card flex flex-col md:flex-row justify-between items-center gap-4 transition-all hover:-translate-y-1`}>
-      <div>
+    <div className="bg-surface/60 backdrop-blur-xl border border-white/20 rounded-[32px] p-6 glass-card flex flex-col md:flex-row justify-between items-center gap-4 transition-all hover:-translate-y-1">
+      <div className="w-full">
          <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded mb-2 inline-block ${cls.isLab ? 'bg-tertiary/20 text-tertiary' : 'bg-secondary/20 text-secondary'}`}>
             {cls.type}
          </span>
-         <h3 className={`text-xl font-bold ${isEnded ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>{cls.course}</h3>
+         <h3 className="text-xl font-bold text-on-surface">{cls.course}</h3>
          <p className="text-on-surface-variant flex items-center gap-2 mt-1">
-           <span className={`font-bold text-lg ${isActive && !isEnded ? 'text-primary' : 'text-on-surface'}`}>Room {cls.room}</span> • {cls.time}
+           <span className="font-bold text-lg text-on-surface">Room {cls.room}</span> • {cls.time}
          </p>
-      </div>
-      
-      <div className="flex items-center gap-4">
-         {isActive || isEnded ? (
-           <div className={`flex flex-col items-center min-w-[100px] ${isEnded ? 'opacity-50' : ''}`}>
-             <span className="text-[10px] text-on-surface-variant uppercase tracking-widest">{statusText}</span>
-             <span className={`text-3xl font-mono font-bold tabular-nums tracking-tighter ${isActive && !isEnded && nowSecs < startSecs ? 'text-secondary' : 'text-primary'}`}>
-               {displayTime}
-             </span>
-           </div>
-         ) : (
-           <button onClick={() => setIsActive(true)} className="px-6 py-2 rounded-xl bg-primary/20 text-primary hover:bg-primary/30 font-bold transition-transform hover:-translate-y-1 text-sm uppercase tracking-widest shadow-[0_0_15px_rgba(var(--primary-rgb),0.1)]">
-              Start
-           </button>
-         )}
       </div>
     </div>
   );
 };
 
-const SmartClassWidget = ({ studyCourses }: { studyCourses: any[] }) => {
+const SmartClassWidget = ({ studySchedule, studyCourses }: { studySchedule: any[], studyCourses: any[] }) => {
   const currentTime = useCurrentTime();
   const dayIndex = currentTime.getDay();
   const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const todayStr = daysMap[dayIndex];
   
   const getTodayClasses = () => {
-    if (!studyCourses) return [];
-    return studyCourses.filter(c => c.day === todayStr).map(c => {
-      const isLab = c.course.toLowerCase().includes('lab') || c.course.toLowerCase().includes('laboratory');
-      const duration = isLab ? 150 : (c.duration || 80);
+    let allClasses: any[] = [];
+    if (studySchedule) allClasses = [...studySchedule];
+    
+    if (studyCourses) {
+      studyCourses.forEach((c: any) => {
+        if (c.schedule && Array.isArray(c.schedule)) {
+          c.schedule.forEach((s: any) => {
+            allClasses.push({
+              id: c.id + '-' + s.day,
+              course: c.title,
+              type: c.isLab ? 'Lab' : (c.subtitle || 'Theory'),
+              day: s.day,
+              time: s.time,
+              room: s.room,
+              duration: c.isLab ? 150 : 80,
+              isLab: c.isLab
+            });
+          });
+        }
+      });
+    }
+
+    return allClasses.filter(c => c.day === todayStr).map(c => {
+      const isLab = c.isLab !== undefined ? c.isLab : (c.course.toLowerCase().includes('lab') || c.course.toLowerCase().includes('laboratory'));
+      const duration = c.duration || (isLab ? 150 : 80);
       return { ...c, isLab, duration };
     });
   };
@@ -194,7 +132,7 @@ const SmartClassWidget = ({ studyCourses }: { studyCourses: any[] }) => {
   if (todaysClasses.length === 0) {
     return (
       <div className="lg:col-span-12 bg-primary/5 backdrop-blur-xl border border-primary/20 rounded-[32px] p-8 glass-card text-center relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors duration-700"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none group-hover:bg-primary/20 transition-colors duration-700 transform-gpu"></div>
         <span className="text-4xl mb-4 block relative z-10">🌿</span>
         <h2 className="text-2xl font-bold text-primary mb-2 relative z-10">No classes today - Take a breather!</h2>
         <p className="text-on-surface-variant relative z-10">Focus on self-study today.</p>
@@ -272,7 +210,7 @@ export function DashboardModule() {
   return (
     <>
       <div 
-        className="fixed inset-0 z-[-2] bg-cover bg-center opacity-30 mix-blend-screen"
+        className="fixed inset-0 z-[-2] bg-cover bg-center opacity-30 transform-gpu"
         style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')" }}
       />
       <div className="fixed inset-0 z-[-1] bg-gradient-to-t from-background via-background/80 to-background/20 pointer-events-none"></div>
@@ -280,8 +218,8 @@ export function DashboardModule() {
       <DashboardErrorBoundary>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-6xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 h-full relative z-0">
         {/* Background Orbs */}
-        <div className="absolute top-10 left-10 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
-        <div className="absolute bottom-10 right-10 w-96 h-96 bg-secondary/20 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen"></div>
+        <div className="absolute top-10 left-10 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none -z-10 transform-gpu"></div>
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-secondary/20 rounded-full blur-3xl pointer-events-none -z-10 transform-gpu"></div>
       
       <div className="lg:col-span-12 flex items-center justify-between">
         <div>
@@ -291,7 +229,7 @@ export function DashboardModule() {
       </div>
 
       {/* Smart Class Widget */}
-      <SmartClassWidget studyCourses={studySchedule} />
+      <SmartClassWidget studySchedule={studySchedule} studyCourses={studyCourses} />
 
 
       {/* Quick Stats Grid */}
@@ -327,7 +265,7 @@ export function DashboardModule() {
 
       {/* Progress Trend Graph */}
       <div className="lg:col-span-12 bg-surface/60 backdrop-blur-xl border border-white/20 rounded-[32px] p-8 glass-card relative overflow-hidden transition-transform hover:-translate-y-1">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/10 rounded-full blur-[80px] pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-secondary/10 rounded-full blur-3xl pointer-events-none transform-gpu"></div>
         <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div>
             <h3 className="text-xl font-bold text-on-surface mb-1">Consistency Matrix</h3>
@@ -431,7 +369,7 @@ export function DashboardModule() {
 
       {/* Pro Coach AI Insight */}
       <div className="lg:col-span-12 bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-[32px] p-8 glass-card relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-primary/20 transition-colors duration-700"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none group-hover:bg-primary/20 transition-colors duration-700 transform-gpu"></div>
         <div className="flex gap-6 items-start relative z-10">
           <div className="w-16 h-16 rounded-2xl bg-primary/20 flex flex-shrink-0 items-center justify-center text-primary border border-primary/30 shadow-[0_0_15px_rgba(255,180,166,0.3)]">
             <Sparkles className="w-8 h-8" />

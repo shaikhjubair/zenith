@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Fingerprint, ArrowRight, ShieldCheck, Key, Mail, Lock } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, sendEmailVerification, signOut, sendPasswordResetEmail, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '../firebase';
+import { seedUserRoutine } from '../db';
 import { ZenithCanvasBackground } from './ZenithCanvasBackground';
 
 interface AuthGateProps {
@@ -40,6 +41,7 @@ export function AuthGate({ children }: AuthGateProps) {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         if (user.emailVerified) {
+          if (user.email) seedUserRoutine(user.email);
           setIsAuthenticated(true);
         } else {
           setIsAuthenticated(false);
@@ -109,31 +111,22 @@ export function AuthGate({ children }: AuthGateProps) {
 
     if (!email.trim() || !password.trim()) return;
     
+    if (email.trim().toLowerCase() !== 'shaikh.jubair.2025@gmail.com') {
+      setErrorMsg('Access Denied: Unauthorized User.');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
     setUnverifiedUser(null);
 
     try {
-      if (isLogin) {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        if (!userCredential.user.emailVerified) {
-          setUnverifiedUser(userCredential.user);
-          await signOut(auth);
-          setErrorMsg('Please verify your email before logging in.');
-          setIsSubmitting(false);
-          return;
-        }
-      } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        try {
-          await sendEmailVerification(userCredential.user);
-        } catch (verifyErr) {
-          console.error("Verification email error:", verifyErr);
-        }
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      if (!userCredential.user.emailVerified) {
+        setUnverifiedUser(userCredential.user);
         await signOut(auth);
-        setErrorMsg('Verification email sent. Please verify your email before logging in.');
-        setIsLogin(true); // Switch to login view
+        setErrorMsg('Please verify your email before logging in.');
         setIsSubmitting(false);
         return;
       }
@@ -197,10 +190,10 @@ export function AuthGate({ children }: AuthGateProps) {
           </div>
 
           <h1 className="text-[36px] font-bold text-on-surface mb-2 tracking-tight text-center leading-none">
-            {resetMode ? 'Set New Password' : (isForgotPassword ? 'Reset Password' : (isLogin ? 'Welcome Back' : 'Create Account'))}
+            {resetMode ? 'Set New Password' : (isForgotPassword ? 'Reset Password' : 'Welcome Back')}
           </h1>
           <p className="text-[16px] text-on-surface-variant text-center mb-8">
-            {resetMode ? 'Enter a strong password for your account.' : (isForgotPassword ? 'Enter your email to receive a reset link.' : (isLogin ? 'Sign in to access Zenith.' : 'Join the elite personal operating system.'))}
+            {resetMode ? 'Enter a strong password for your account.' : (isForgotPassword ? 'Enter your email to receive a reset link.' : 'Sign in to access Zenith.')}
           </p>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 relative z-20">
@@ -295,19 +288,63 @@ export function AuthGate({ children }: AuthGateProps) {
               </button>
             )}
 
-            <button 
-              type="submit"
-              disabled={isSubmitting || (resetMode ? !newPassword : (!email || (!isForgotPassword && !password)))}
-              className="w-full py-4 mt-2 rounded-2xl bg-primary text-on-primary font-bold text-[16px] tracking-wide shadow-[0_0_20px_rgba(255,180,166,0.3)] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(255,180,166,0.6)] hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:hover:-translate-y-0 disabled:hover:shadow-[0_0_20px_rgba(255,180,166,0.3)] disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  {resetMode ? 'Confirm Password' : (isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Sign In' : 'Sign Up'))} <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
+            {!isForgotPassword && !resetMode ? (
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-primary hover:bg-primary/90 text-on-primary rounded-2xl py-4 font-bold text-[16px] tracking-wide transition-all shadow-[0_0_40px_rgba(255,180,166,0.3)] hover:shadow-[0_0_60px_rgba(255,180,166,0.5)] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 group/btn"
+                  >
+                    {isSubmitting ? (
+                      <div className="w-6 h-6 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <>
+                        Sign In
+                        <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setErrorMsg('');
+                      setSuccessMsg('');
+                    }}
+                    className="text-on-surface-variant hover:text-primary transition-colors text-sm font-medium py-2"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+            ) : isForgotPassword ? (
+              <button 
+                type="submit"
+                disabled={isSubmitting || !email}
+                className="w-full py-4 mt-2 rounded-2xl bg-primary text-on-primary font-bold text-[16px] tracking-wide shadow-[0_0_20px_rgba(255,180,166,0.3)] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(255,180,166,0.6)] hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:hover:-translate-y-0 disabled:hover:shadow-[0_0_20px_rgba(255,180,166,0.3)] disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <div className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    Send Reset Link <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            ) : (
+              <button 
+                type="submit"
+                disabled={isSubmitting || !newPassword}
+                className="w-full py-4 mt-2 rounded-2xl bg-primary text-on-primary font-bold text-[16px] tracking-wide shadow-[0_0_20px_rgba(255,180,166,0.3)] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(255,180,166,0.6)] hover:bg-primary/90 transition-all duration-300 disabled:opacity-50 disabled:hover:-translate-y-0 disabled:hover:shadow-[0_0_20px_rgba(255,180,166,0.3)] disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <div className="w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    Confirm Password <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            )}
           </form>
 
           <div className="w-full mt-6 pt-6 border-t border-white/10 flex justify-center">
@@ -316,6 +353,7 @@ export function AuthGate({ children }: AuthGateProps) {
                 type="button"
                 onClick={() => {
                   setResetMode(false);
+                  setIsLogin(true);
                   setErrorMsg('');
                   setSuccessMsg('');
                   window.history.replaceState({}, document.title, window.location.pathname);
@@ -337,18 +375,9 @@ export function AuthGate({ children }: AuthGateProps) {
                 Back to Login
               </button>
             ) : (
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrorMsg('');
-                  setSuccessMsg('');
-                  setUnverifiedUser(null);
-                }}
-                className="text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors py-2 px-4 rounded-full hover:bg-primary/10"
-              >
-                {isLogin ? "Don't have an account? Create one." : "Already have an account? Sign in."}
-              </button>
+              <p className="mt-4 text-center text-sm text-on-surface-variant/60 font-medium">
+                Zenith OS - Private Access Only
+              </p>
             )}
           </div>
         </div>

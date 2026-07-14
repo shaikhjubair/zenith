@@ -133,8 +133,8 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
           >
             {/* Background Aurora Blur for Lock Screen */}
             <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none overflow-hidden">
-              <div className="absolute w-96 h-96 bg-primary/20 rounded-full blur-[120px] mix-blend-screen animate-pulse duration-10000 -top-20 -left-20"></div>
-              <div className="absolute w-96 h-96 bg-secondary/20 rounded-full blur-[120px] mix-blend-screen animate-pulse duration-7000 delay-1000 bottom-0 right-0"></div>
+              <div className="absolute w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse duration-10000 -top-20 -left-20 transform-gpu"></div>
+              <div className="absolute w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse duration-7000 delay-1000 bottom-0 right-0 transform-gpu"></div>
             </div>
 
             <motion.div 
@@ -144,10 +144,10 @@ export function SecureModuleWrapper({ children, moduleName }: SecureModuleWrappe
               className={`relative z-10 p-6 md:p-8 flex flex-col items-center justify-center w-[calc(100%-2rem)] max-w-sm transition-all duration-500 ${
                 authStatus === 'success'
                   ? 'bg-transparent border-transparent shadow-none'
-                  : 'bg-surface-container-high/60 backdrop-blur-[60px] border border-white/20 rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)]'
+                  : 'bg-surface-container-high/60 backdrop-blur-3xl border border-white/20 rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.6),inset_1px_1px_0px_rgba(255,255,255,0.2)]'
               }`}
             >
-              <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-[60px] rounded-full pointer-events-none transition-opacity duration-500 ${authStatus === 'success' ? 'opacity-0' : 'opacity-100'}`}></div>
+              <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-32 bg-primary/15 blur-3xl rounded-full pointer-events-none transition-opacity duration-500 transform-gpu ${authStatus === 'success' ? 'opacity-0' : 'opacity-100'}`}></div>
 
               <motion.div 
                 animate={

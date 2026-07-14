@@ -1,6 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query } from 'firebase/firestore';
-import { db, auth } from './firebase';
 
 export type StoreName = string;
 
@@ -11,75 +9,109 @@ interface StoreActions<T extends { id?: string | number }> {
   refresh: () => Promise<void>;
 }
 
+// Generate a random ID since we aren't using Firestore doc IDs anymore
+const generateId = () => {
+  return Date.now().toString() + Math.random().toString(36).substring(2, 9);
+};
+
 export function useStore<T extends { id?: string | number }>(storeName: StoreName): [T[], StoreActions<T>, boolean] {
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const storeRef = useRef(storeName);
   storeRef.current = storeName;
 
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) {
+  const storageKey = `zenith_${storeName}`;
+
+  const loadData = () => {
+    try {
+      const data = localStorage.getItem(storageKey);
+      if (data) {
+        setItems(JSON.parse(data));
+      } else {
+        setItems([]);
+      }
+    } catch (err) {
+      console.error(`[useStore] Failed to parse ${storageKey} from localStorage:`, err);
       setItems([]);
+    } finally {
       setLoading(false);
-      return;
     }
+  };
 
-    setLoading(true);
-    const q = query(collection(db, `users/${user?.uid}/${storeRef.current}`));
+  useEffect(() => {
+    loadData();
+
+    // Setup listener for cross-tab or programmatic localStorage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === storageKey) {
+        loadData();
+      }
+    };
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as T[];
-      setItems(data);
-      setLoading(false);
-    }, (error) => {
-      console.error(`[useStore] Firestore sync error for ${storeRef.current}:`, error);
-      setLoading(false);
-    });
+    // Custom event listener for same-window updates
+    const handleCustomChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail === storageKey) {
+        loadData();
+      }
+    };
 
-    return () => unsubscribe();
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('zenith-store-update', handleCustomChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('zenith-store-update', handleCustomChange);
+    };
   }, [storeName]);
+
+  const dispatchUpdate = () => {
+    window.dispatchEvent(new CustomEvent('zenith-store-update', { detail: storageKey }));
+  };
 
   const actions: StoreActions<T> = useMemo(() => ({
     add: async (item) => {
-      const user = auth.currentUser;
-      if (!user) return;
       try {
-        await addDoc(collection(db, `users/${user?.uid}/${storeRef.current}`), item as any);
+        const currentData = localStorage.getItem(storageKey);
+        const currentItems = currentData ? JSON.parse(currentData) : [];
+        const newItem = { id: generateId(), ...item } as unknown as T;
+        const newItems = [...currentItems, newItem];
+        localStorage.setItem(storageKey, JSON.stringify(newItems));
+        dispatchUpdate();
       } catch (err) {
-        console.error(`[useStore] Failed to add to ${storeRef.current}:`, err);
+        console.error(`[useStore] Failed to add to ${storageKey}:`, err);
       }
     },
 
     update: async (id, updates) => {
-      const user = auth.currentUser;
-      if (!user) return;
       try {
-        const docRef = doc(db, `users/${user?.uid}/${storeRef.current}`, id.toString());
-        await updateDoc(docRef, updates as any);
+        const currentData = localStorage.getItem(storageKey);
+        const currentItems = currentData ? JSON.parse(currentData) : [];
+        const newItems = currentItems.map((item: any) => 
+          item.id === id ? { ...item, ...updates } : item
+        );
+        localStorage.setItem(storageKey, JSON.stringify(newItems));
+        dispatchUpdate();
       } catch (err) {
-        console.error(`[useStore] Failed to update ${storeRef.current}:`, err);
+        console.error(`[useStore] Failed to update ${storageKey}:`, err);
       }
     },
 
     remove: async (id) => {
-      const user = auth.currentUser;
-      if (!user) return;
       try {
-        const docRef = doc(db, `users/${user?.uid}/${storeRef.current}`, id.toString());
-        await deleteDoc(docRef);
+        const currentData = localStorage.getItem(storageKey);
+        const currentItems = currentData ? JSON.parse(currentData) : [];
+        const newItems = currentItems.filter((item: any) => item.id !== id);
+        localStorage.setItem(storageKey, JSON.stringify(newItems));
+        dispatchUpdate();
       } catch (err) {
-        console.error(`[useStore] Failed to remove from ${storeRef.current}:`, err);
+        console.error(`[useStore] Failed to remove from ${storageKey}:`, err);
       }
     },
 
     refresh: async () => {
-      // With onSnapshot, refresh is essentially a no-op since it's real-time
+      loadData();
     },
-  }), []);
+  }), [storeName]);
 
   return [items, actions, loading];
 }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, User, BookOpen, Key, Save, Plus, ShieldCheck, Download, Upload } from 'lucide-react';
 import { useUserProfile } from '../context/UserProfileContext';
 import { auth } from '../firebase';
+import { EmailAuthProvider, reauthenticateWithCredential, deleteUser } from 'firebase/auth';
 import { exportData, importData, getLocalApiKey, setLocalApiKey, STORES } from '../db';
 import { useStore } from '../useStore';
 
@@ -18,6 +19,11 @@ export function AccountHubModal({ isOpen, onClose, defaultTab = 'personal' }: Ac
   const [formData, setFormData] = useState(profile);
   const [apiKey, setApiKey] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
+  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [studyCourses, { add: addCourse }] = useStore<any>(STORES.studySchedule);
   const [newCourse, setNewCourse] = useState({
@@ -45,6 +51,28 @@ export function AccountHubModal({ isOpen, onClose, defaultTab = 'personal' }: Ac
     updateProfile(formData);
     setSaveStatus('Profile updated successfully!');
     setTimeout(() => setSaveStatus(''), 2000);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!auth.currentUser || !auth.currentUser.email) return;
+    if (!deletePassword) {
+      setDeleteError("Please enter your password.");
+      return;
+    }
+    
+    setIsDeleting(true);
+    setDeleteError('');
+    
+    try {
+      const credential = EmailAuthProvider.credential(auth.currentUser.email, deletePassword);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await deleteUser(auth.currentUser);
+      onClose();
+    } catch (err: any) {
+      console.error("Account deletion error:", err);
+      setDeleteError(err.message || "Failed to delete account. Incorrect password?");
+      setIsDeleting(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,8 +247,8 @@ export function AccountHubModal({ isOpen, onClose, defaultTab = 'personal' }: Ac
                       </div>
                     </div>
                     <div>
-                      <h4 className="text-lg font-bold text-on-surface">{formData.name || 'User Name'}</h4>
-                      <p className="text-sm text-on-surface-variant">{auth.currentUser?.email || 'user@example.com'}</p>
+                      <h4 className="text-lg font-bold text-on-surface">{formData.name || 'Shaikh Jubair'}</h4>
+                      <p className="text-sm text-on-surface-variant">{auth.currentUser?.email || 'shaikh.jubair.2025@gmail.com'}</p>
                     </div>
                   </div>
 
@@ -231,7 +259,7 @@ export function AccountHubModal({ isOpen, onClose, defaultTab = 'personal' }: Ac
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-on-surface-variant uppercase">Email (Read Only)</label>
-                      <input type="text" value={auth.currentUser?.email || ''} readOnly className="w-full bg-surface-container/30 border border-white/5 rounded-xl px-4 py-3 text-on-surface-variant cursor-not-allowed" />
+                      <input type="text" value={auth.currentUser?.email || 'shaikh.jubair.2025@gmail.com'} readOnly className="w-full bg-surface-container/30 border border-white/5 rounded-xl px-4 py-3 text-on-surface-variant cursor-not-allowed" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-on-surface-variant uppercase">Phone Number</label>
@@ -259,6 +287,45 @@ export function AccountHubModal({ isOpen, onClose, defaultTab = 'personal' }: Ac
                     <Save className="w-5 h-5" /> Save Profile
                   </button>
                 </form>
+
+                <div className="mt-8 pt-8 border-t border-error/20">
+                  <h4 className="text-[14px] font-bold uppercase tracking-widest text-error mb-4">Danger Zone</h4>
+                  {!showDeleteConfirm ? (
+                    <button 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="w-full bg-error/10 text-error border border-error/20 py-3 rounded-xl font-bold hover:bg-error hover:text-white transition-colors"
+                    >
+                      Delete Account
+                    </button>
+                  ) : (
+                    <div className="bg-error/10 border border-error/30 rounded-xl p-4 space-y-4">
+                      <p className="text-sm text-error font-medium">This action cannot be undone. All your data will be permanently lost.</p>
+                      <input 
+                        type="password" 
+                        placeholder="Enter password to confirm" 
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        className="w-full bg-black/30 border border-error/30 rounded-xl px-4 py-2 text-on-surface focus:outline-none focus:border-error"
+                      />
+                      {deleteError && <p className="text-xs text-error">{deleteError}</p>}
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteError(''); }}
+                          className="flex-1 bg-surface border border-white/10 text-on-surface py-2 rounded-xl font-bold hover:bg-white/5 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          onClick={handleDeleteAccount}
+                          disabled={isDeleting}
+                          className="flex-1 bg-error text-white py-2 rounded-xl font-bold hover:bg-error/90 transition-colors disabled:opacity-50"
+                        >
+                          {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
 

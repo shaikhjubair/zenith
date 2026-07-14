@@ -35,6 +35,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [taskQueue] = useStore<any>(STORES.taskQueue);
   const [tasks] = useStore<any>('tasks'); // The TasksModule uses 'tasks' store
   const [studyCourses] = useStore<any>(STORES.studyCourses);
+  const [studySchedule] = useStore<any>(STORES.studySchedule);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -101,10 +102,77 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           addNotification('tasks-standalone-due', 'Outstanding Tasks', `You have ${pendingTasks.length} uncompleted tasks.`, 'tasks');
         }
       }
+
+      // Class Schedule Notifications
+      if (studySchedule && studySchedule.length > 0) {
+        const now = new Date();
+        const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const todayStr = daysMap[now.getDay()];
+        const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+
+        const extractStartEndTimes = (timeStr: string) => {
+          if (!timeStr) return { startMins: -1, endMins: -1 };
+          const regex = /(\d{1,2})\D*(\d{2})\D*(AM|PM)/gi;
+          const matches = [...timeStr.matchAll(regex)];
+          
+          if (matches.length === 0) return { startMins: -1, endMins: -1 };
+          
+          const parseMatch = (m: RegExpMatchArray) => {
+              let h = parseInt(m[1], 10);
+              let min = parseInt(m[2], 10);
+              let p = m[3].toUpperCase();
+              if (p === 'PM' && h !== 12) h += 12;
+              if (p === 'AM' && h === 12) h = 0;
+              return h * 60 + min;
+          };
+
+          const startMins = parseMatch(matches[0]);
+          const endMins = matches.length > 1 ? parseMatch(matches[matches.length - 1]) : startMins;
+
+          return { startMins, endMins };
+        };
+
+        let allClasses: any[] = [];
+        if (studySchedule) allClasses = [...studySchedule];
+        
+        if (studyCourses) {
+          studyCourses.forEach((c: any) => {
+            if (c.schedule && Array.isArray(c.schedule)) {
+              c.schedule.forEach((s: any) => {
+                allClasses.push({
+                  id: c.id + '-' + s.day,
+                  course: c.title,
+                  type: c.isLab ? 'Lab' : (c.subtitle || 'Theory'),
+                  day: s.day,
+                  time: s.time,
+                  room: s.room
+                });
+              });
+            }
+          });
+        }
+
+        allClasses.forEach((cls: any) => {
+          if (cls.day === todayStr) {
+            const { startMins } = extractStartEndTimes(cls.time);
+            
+            if (startMins !== -1) {
+              const remaining = startMins - currentTimeMinutes;
+              const dateStr = now.toLocaleDateString();
+              
+              if (remaining === 10) {
+                addNotification(`class-warn-${cls.id}-${dateStr}`, 'Class Starting Soon!', `Your ${cls.type} class for ${cls.course} starts in 10 minutes in Room ${cls.room}.`, 'dashboard');
+              } else if (remaining === 0) {
+                addNotification(`class-start-${cls.id}-${dateStr}`, 'Class Starting!', `Your ${cls.type} class for ${cls.course} is starting now in Room ${cls.room}.`, 'dashboard');
+              }
+            }
+          }
+        });
+      }
     }, 15000); 
 
     return () => clearInterval(interval);
-  }, [taskQueue, tasks, studyCourses, permission, notifiedSet]);
+  }, [taskQueue, tasks, studyCourses, studySchedule, permission, notifiedSet]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
