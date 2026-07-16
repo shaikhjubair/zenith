@@ -294,120 +294,6 @@ export function StudyModule() {
   const [newExamTitle, setNewExamTitle] = useState('');
   const [newExamDate, setNewExamDate] = useState('');
 
-  useEffect(() => {
-    const currentCourses = JSON.parse(localStorage.getItem('zenith_studyCourses') || '[]');
-    
-    const isPerfect = currentCourses.some((c: any) => c.title.includes('CSE 1115') && c.syllabus?.[0]?.term === 'midterm');
-    
-    if (!isPerfect) {
-      const pristineCourses = [
-        {
-          id: "eee-2113-circuits",
-          title: "EEE 2113: Electrical Circuits",
-          subtitle: "Sadiku 5th Ed",
-          icon: "Cpu",
-          color: "tertiary",
-          isLab: false,
-          attendedClasses: 0,
-          schedule: [
-            { day: "Sun", time: "12:31 PM - 01:50 PM", room: "428" },
-            { day: "Wed", time: "12:31 PM - 01:50 PM", room: "428" }
-          ],
-          syllabus: [
-            { term: 'midterm', chapterTitle: 'Ch 1 & 2: Basic Concepts', subTopics: [
-              { id: 'c-1', title: '1.1-1.6 Units, Voltage, Power', isCompleted: false },
-              { id: 'c-2', title: "2.1-2.4 Ohm's Law, Nodes", isCompleted: false },
-              { id: 'c-3', title: '2.5-2.8 Series/Parallel', isCompleted: false }
-            ]},
-            { term: 'midterm', chapterTitle: 'Ch 3 & 4: Analysis & Theorems', subTopics: [
-              { id: 'c-4', title: '3.1-3.5 Nodal & Mesh', isCompleted: false },
-              { id: 'c-5', title: '4.1-4.4 Superposition', isCompleted: false },
-              { id: 'c-6', title: '4.5-4.8 Thevenin, Norton', isCompleted: false }
-            ]},
-            { term: 'final', chapterTitle: 'Ch 6 & 7: Capacitors & Inductors', subTopics: [
-              { id: 'c-7', title: '6.1-6.5 Series/Parallel Caps', isCompleted: false },
-              { id: 'c-8', title: '7.1-7.6 Source-Free RC/RL', isCompleted: false }
-            ]},
-            { term: 'final', chapterTitle: 'Ch 9, 10 & 11: AC Circuits', subTopics: [
-              { id: 'c-9', title: '9.1-9.7 Sinusoids, Phasors', isCompleted: false },
-              { id: 'c-10', title: '10.1-10.6 AC Nodal, Mesh', isCompleted: false }
-            ]}
-          ]
-        },
-        {
-          id: "cse-1115-theory",
-          title: "CSE 1115: Object Oriented Programming",
-          subtitle: "Java Theory",
-          icon: "Code2",
-          color: "primary",
-          isLab: false,
-          attendedClasses: 0,
-          schedule: [
-            { day: "Tue", time: "03:11 PM - 04:30 PM", room: "305" },
-            { day: "Sat", time: "03:11 PM - 04:30 PM", room: "305" }
-          ],
-          syllabus: [
-            { term: 'midterm', chapterTitle: 'Ch 2 & 3: Intro & Objects', subTopics: [
-              { id: 'th-1', title: '2.1-2.5 Basic Syntax', isCompleted: false },
-              { id: 'th-2', title: '3.1-3.4 Classes & Methods', isCompleted: false },
-              { id: 'th-3', title: '3.5-3.6 Constructors', isCompleted: false }
-            ]},
-            { term: 'midterm', chapterTitle: 'Ch 4 & 5: Control Statements', subTopics: [
-              { id: 'th-4', title: '4.1-4.8 if, while & Assignment', isCompleted: false },
-              { id: 'th-5', title: '5.1-5.8 for, switch, break', isCompleted: false }
-            ]},
-            { term: 'midterm', chapterTitle: 'Ch 6 & 7: Methods & Arrays', subTopics: [
-              { id: 'th-6', title: '6.1-6.5 Static Methods & Math', isCompleted: false },
-              { id: 'th-7', title: '7.1-7.11 Arrays & ArrayLists', isCompleted: false }
-            ]},
-            { term: 'final', chapterTitle: 'Ch 8 & 9: Classes & Inheritance', subTopics: [
-              { id: 'th-8', title: '8.1-8.14 Overloaded Constructors', isCompleted: false },
-              { id: 'th-9', title: '9.1-9.8 Superclasses & Subclasses', isCompleted: false }
-            ]},
-            { term: 'final', chapterTitle: 'Ch 10 & 11: Polymorphism & Exceptions', subTopics: [
-              { id: 'th-10', title: '10.1-10.8 Abstract Classes & Interfaces', isCompleted: false },
-              { id: 'th-11', title: '11.1-11.8 Try, Catch, Finally', isCompleted: false }
-            ]}
-          ]
-        },
-        {
-          id: "cse-1116-lab",
-          title: "CSE 1116: OOP Laboratory",
-          subtitle: "Java Lab",
-          icon: "Database",
-          color: "secondary",
-          isLab: true,
-          attendedClasses: 0,
-          schedule: [
-            { day: "Tue", time: "08:30 AM - 11:00 AM", room: "426" }
-          ],
-          syllabus: [
-            { term: 'midterm', chapterTitle: 'Lab 1-4: Basics & Control Flow', subTopics: [
-              { id: 'lab-1', title: 'IDE Setup, Print & Scanner I/O', isCompleted: false },
-              { id: 'lab-2', title: 'Instantiating Objects & Loops', isCompleted: false }
-            ]},
-            { term: 'midterm', chapterTitle: 'Lab 5-6: Methods & Arrays', subTopics: [
-              { id: 'lab-3', title: 'Overloading & Static Variables', isCompleted: false },
-              { id: 'lab-4', title: '1D/2D Arrays, Searching', isCompleted: false }
-            ]},
-            { term: 'final', chapterTitle: 'Lab 7-10: OOP & Polymorphism', subTopics: [
-              { id: 'lab-5', title: 'Constructors, Encapsulation', isCompleted: false },
-              { id: 'lab-6', title: 'Abstract Classes & Interfaces', isCompleted: false }
-            ]},
-            { term: 'final', chapterTitle: 'Lab 11-12: Exceptions & I/O', subTopics: [
-              { id: 'lab-7', title: 'Try-Catch & Custom Exceptions', isCompleted: false },
-              { id: 'lab-8', title: 'File I/O (Read/Write)', isCompleted: false }
-            ]}
-          ]
-        }
-      ];
-
-      localStorage.setItem('zenith_studyCourses', JSON.stringify(pristineCourses));
-      window.dispatchEvent(new CustomEvent('zenith-store-update', { detail: STORES.studyCourses }));
-      
-      window.location.reload();
-    }
-  }, []);
 
   useEffect(() => {
     if (loading || !courses) return;
@@ -509,6 +395,60 @@ export function StudyModule() {
             practice: freshPractice 
         });
       }
+    }
+
+    const oopTheory = courses.find((c: any) => c.title.includes('CSE 1115'));
+    if (oopTheory && (!oopTheory.syllabus || oopTheory.syllabus.length === 0)) {
+        actions.update(oopTheory.id!, {
+            syllabus: [
+                { term: 'midterm', chapterTitle: 'Ch 2 & 3: Intro & Objects', subTopics: [
+                    { id: 'th-1', title: '2.1-2.5 Basic Syntax', isCompleted: false },
+                    { id: 'th-2', title: '3.1-3.4 Classes & Methods', isCompleted: false },
+                    { id: 'th-3', title: '3.5-3.6 Constructors', isCompleted: false }
+                ]},
+                { term: 'midterm', chapterTitle: 'Ch 4 & 5: Control Statements', subTopics: [
+                    { id: 'th-4', title: '4.1-4.8 if, while & Assignment', isCompleted: false },
+                    { id: 'th-5', title: '5.1-5.8 for, switch, break', isCompleted: false }
+                ]},
+                { term: 'midterm', chapterTitle: 'Ch 6 & 7: Methods & Arrays', subTopics: [
+                    { id: 'th-6', title: '6.1-6.5 Static Methods & Math', isCompleted: false },
+                    { id: 'th-7', title: '7.1-7.11 Arrays & ArrayLists', isCompleted: false }
+                ]},
+                { term: 'final', chapterTitle: 'Ch 8 & 9: Classes & Inheritance', subTopics: [
+                    { id: 'th-8', title: '8.1-8.14 Overloaded Constructors', isCompleted: false },
+                    { id: 'th-9', title: '9.1-9.8 Superclasses & Subclasses', isCompleted: false }
+                ]},
+                { term: 'final', chapterTitle: 'Ch 10 & 11: Polymorphism & Exceptions', subTopics: [
+                    { id: 'th-10', title: '10.1-10.8 Abstract Classes & Interfaces', isCompleted: false },
+                    { id: 'th-11', title: '11.1-11.8 Try, Catch, Finally', isCompleted: false }
+                ]}
+            ]
+        });
+    }
+
+    const oopLab = courses.find((c: any) => c.title.includes('CSE 1116'));
+    if (oopLab && (!oopLab.syllabus || oopLab.syllabus.length === 0)) {
+        actions.update(oopLab.id!, {
+            isLab: true,
+            syllabus: [
+                { term: 'midterm', chapterTitle: 'Lab 1-4: Basics & Control Flow', subTopics: [
+                    { id: 'lab-1', title: 'IDE Setup, Print & Scanner I/O', isCompleted: false },
+                    { id: 'lab-2', title: 'Instantiating Objects & Loops', isCompleted: false }
+                ]},
+                { term: 'midterm', chapterTitle: 'Lab 5-6: Methods & Arrays', subTopics: [
+                    { id: 'lab-3', title: 'Overloading & Static Variables', isCompleted: false },
+                    { id: 'lab-4', title: '1D/2D Arrays, Searching', isCompleted: false }
+                ]},
+                { term: 'final', chapterTitle: 'Lab 7-10: OOP & Polymorphism', subTopics: [
+                    { id: 'lab-5', title: 'Constructors, Encapsulation', isCompleted: false },
+                    { id: 'lab-6', title: 'Abstract Classes & Interfaces', isCompleted: false }
+                ]},
+                { term: 'final', chapterTitle: 'Lab 11-12: Exceptions & I/O', subTopics: [
+                    { id: 'lab-7', title: 'Try-Catch & Custom Exceptions', isCompleted: false },
+                    { id: 'lab-8', title: 'File I/O (Read/Write)', isCompleted: false }
+                ]}
+            ]
+        });
     }
   }, [courses, loading, actions]);
 
