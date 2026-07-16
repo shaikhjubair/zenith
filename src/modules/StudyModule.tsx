@@ -7,22 +7,26 @@ import { FormModal } from '../components/FormModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 interface StudyCourse {
-  id?: number;
+  id?: string | number;
   title: string;
   subtitle: string;
   icon: string;
   color: string;
+  isLab?: boolean;
+  schedule?: { day: string; time: string; room: string; type?: string }[];
   topics?: { id: string; title: string; isDone: boolean; term?: 'midterm' | 'final' }[];
   syllabus?: {
     term: 'midterm' | 'final';
     chapterTitle: string;
     subTopics: { id: string; title: string; isCompleted: boolean }[];
   }[];
+  practice?: { id: string; term: string; title: string; isDone: boolean }[];
   notes?: { id: string; content: string; date: string; }[];
   exams?: { id: string; title: string; date: string; }[];
   midtermClasses?: number;
   finalClasses?: number;
-  completedClasses?: number; // legacy
+  completedClasses?: number;
+  attendedClasses?: number;
   term?: 'midterm' | 'final';
   marksTracker?: {
     midterm?: {
@@ -44,7 +48,6 @@ interface StudyCourse {
   };
   last_auto_increment_date?: string;
 }
-// SCHEDULE_DATA is now loaded dynamically from STORES.studySchedule
 
 export const useCurrentTime = () => {
   const [time, setTime] = useState(new Date());
@@ -82,7 +85,7 @@ export const getClassStatus = (timeStr: string, currentTime: Date) => {
     const { startMins, endMins } = extractStartEndTimes(timeStr);
     const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
     
-    if (startMins === -1 || endMins === -1) return 'upcoming'; // parse failed
+    if (startMins === -1 || endMins === -1) return 'upcoming';
     if (nowMins > endMins) return 'ended';
     if (nowMins >= startMins && nowMins <= endMins) return 'active';
     return 'upcoming';
@@ -283,7 +286,7 @@ export function StudyModule() {
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [topicToDelete, setTopicToDelete] = useState<string | null>(null);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'topics' | 'notes' | 'exams' | 'marks'>('topics');
+  const [activeTab, setActiveTab] = useState<'topics' | 'notes' | 'exams' | 'marks' | 'practice'>('topics');
   const [studySchedule, scheduleActions] = useStore<any>(STORES.studySchedule);
   
   const [newTopic, setNewTopic] = useState('');
@@ -292,14 +295,11 @@ export function StudyModule() {
   const [newExamDate, setNewExamDate] = useState('');
 
   useEffect(() => {
-    // We bypass the corrupted cache by forcing a clean slate if the courses are missing or corrupted
     const currentCourses = JSON.parse(localStorage.getItem('zenith_studyCourses') || '[]');
     
-    // Check if we already have the perfect lowercase version
     const isPerfect = currentCourses.some((c: any) => c.title.includes('CSE 1115') && c.syllabus?.[0]?.term === 'midterm');
     
     if (!isPerfect) {
-      // Create pristine courses with STRICT lowercase 'midterm' and 'final' terms
       const pristineCourses = [
         {
           id: "eee-2113-circuits",
@@ -402,13 +402,9 @@ export function StudyModule() {
         }
       ];
 
-      // Note to AI: Replace setStudyCourses with the actual action/state setter
-      // Since the user is using `actions.add` or similar in a custom useStore,
-      // it's safer to just forcefully overwrite localStorage and dispatch the event
       localStorage.setItem('zenith_studyCourses', JSON.stringify(pristineCourses));
       window.dispatchEvent(new CustomEvent('zenith-store-update', { detail: STORES.studyCourses }));
       
-      // Force page reload once to apply fresh state
       window.location.reload();
     }
   }, []);
@@ -416,7 +412,6 @@ export function StudyModule() {
   useEffect(() => {
     if (loading || !courses) return;
 
-    // Check if CSE 1116 Lab exists, if not, add it with full syllabus
     if (!courses.some(c => c.title.includes('CSE 1116'))) {
       const oopLabCourse = {
         id: "cse-1116-lab-" + Date.now(),
@@ -457,16 +452,13 @@ export function StudyModule() {
         ]
       };
       
-      // Add the course using the actions object
       actions.add(oopLabCourse as any);
     }
   }, [courses, loading, actions]);
 
   useEffect(() => {
-    // Only run when data is loaded
     if (loading || courses === undefined) return;
 
-    // 1. Fix Electronics Lab
     const eee2124 = courses.find((c: any) => c.title.includes('EEE 2124'));
     if (eee2124 && !eee2124.isLab) {
       actions.update(eee2124.id!, { isLab: true });
@@ -510,7 +502,6 @@ export function StudyModule() {
         practice: freshPractice
       } as any);
     } else {
-      // Safely check if we need to force the update to avoid infinite loops
       const needsUpdate = !mathCourse.practice || !mathCourse.practice[0]?.term || mathCourse.syllabus?.[0]?.subTopics?.[2]?.title !== 'Even & Odd Functions';
       if (needsUpdate) {
         actions.update(mathCourse.id!, { 
@@ -527,11 +518,11 @@ export function StudyModule() {
     const todayStr = daysMap[currentTime.getDay()];
     const todayStamp = currentTime.toLocaleDateString('en-CA');
 
-    courses.forEach(course => {
+    courses.forEach((course: any) => {
       const globalClasses = (studySchedule || []).filter((s: any) => s.day === todayStr && s.course === course.title);
       const courseLocalClasses = (course.schedule || []).filter((s: any) => s.day === todayStr);
       const todayClassesForCourse = courseLocalClasses.length > 0 ? courseLocalClasses : globalClasses;
-      const endedClass = todayClassesForCourse.find(c => getClassStatus(c.time, currentTime) === 'ended');
+      const endedClass = todayClassesForCourse.find((c: any) => getClassStatus(c.time, currentTime) === 'ended');
       
       if (endedClass && course.last_auto_increment_date !== todayStamp) {
         const isLab = course.title.toLowerCase().includes('lab') || course.title.toLowerCase().includes('laboratory');
@@ -571,10 +562,9 @@ export function StudyModule() {
     }
   };
 
-  const activeCourse = courses.find(c => c.id === activeCourseId);
+  const activeCourse = courses.find((c: any) => c.id === activeCourseId);
 
-  // Exam Alert Logic
-  const allExams = courses.flatMap(c => (c.exams || []).map(e => ({ ...e, courseId: c.id, courseTitle: c.title })));
+  const allExams = courses.flatMap((c: any) => (c.exams || []).map((e: any) => ({ ...e, courseId: c.id, courseTitle: c.title })));
   const futureExams = allExams.filter(e => Date.parse(e.date) > Date.now());
   const closestExam = futureExams.sort((a, b) => Date.parse(a.date) - Date.parse(b.date))[0];
   const isUrgent = closestExam && (Date.parse(closestExam.date) - Date.now() <= 48 * 60 * 60 * 1000);
@@ -594,7 +584,7 @@ export function StudyModule() {
 
   const handleToggleTopic = (topicId: string) => {
     if (!activeCourse || activeCourse.id === undefined) return;
-    const topics = (activeCourse.topics || []).map(t => t.id === topicId ? { ...t, isDone: !t.isDone } : t);
+    const topics = (activeCourse.topics || []).map((t: any) => t.id === topicId ? { ...t, isDone: !t.isDone } : t);
     actions.update(activeCourse.id, { topics });
   };
 
@@ -602,7 +592,6 @@ export function StudyModule() {
     if (!activeCourse || !activeCourse.syllabus || activeCourse.id === undefined) return;
     const term = activeCourse.term || 'midterm';
     
-    // Create a deep copy of the syllabus
     const newSyllabus = JSON.parse(JSON.stringify(activeCourse.syllabus));
     const termChapters = newSyllabus.filter((s: any) => s.term === term);
     
@@ -820,7 +809,7 @@ export function StudyModule() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-4">
-                  {[...(activeCourse.notes || [])].reverse().map(note => (
+                  {[...(activeCourse.notes || [])].reverse().map((note: any) => (
                     <div key={note.id} className="p-5 rounded-2xl bg-white/5 border border-white/5 relative group">
                       <p className="text-sm text-primary/80 mb-2 font-mono">{new Date(note.date).toLocaleString()}</p>
                       <p className="text-on-surface whitespace-pre-wrap">{note.content}</p>
@@ -854,7 +843,7 @@ export function StudyModule() {
                   </button>
                 </div>
                 <div className="flex flex-col gap-3">
-                  {(activeCourse.exams || []).map(exam => (
+                  {(activeCourse.exams || []).map((exam: any) => (
                     <div key={exam.id} className="flex items-center gap-4 p-5 rounded-2xl border border-white/5 bg-white/5">
                       <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                         <Clock className="w-6 h-6" />
@@ -1054,7 +1043,7 @@ export function StudyModule() {
                   {courses.length === 0 && (
                     <p className="text-on-surface-variant/50 text-center py-8">No courses yet. Add one to get started.</p>
                   )}
-                  {courses.map((course) => {
+                  {courses.map((course: any) => {
                     const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                     const todayStr = daysMap[currentTime.getDay()];
                     
@@ -1125,16 +1114,13 @@ export function StudyModule() {
 
                     const currentTerm = course.term || 'midterm';
                     
-                    // Calculate Attendance Percentage
                     const maxClasses = course.isLab ? 12 : 24;
                     const attendedCount = course.attendedClasses || course.completedClasses || 0;
                     const attendancePercentage = Math.min(100, Math.max(0, (attendedCount / maxClasses) * 100));
 
-                    // Calculate Syllabus Percentage (assuming course.syllabus holds the topics)
                     let totalTopics = 0;
                     let completedTopics = 0;
                     if (course.syllabus && course.syllabus.length > 0) {
-                      // If syllabus has nested subTopics
                       course.syllabus.forEach((chapter: any) => {
                         if (chapter.subTopics) {
                           totalTopics += chapter.subTopics.length;
@@ -1240,7 +1226,7 @@ export function StudyModule() {
           onClose={() => setTopicToDelete(null)}
           onConfirm={() => {
             if (activeCourse && activeCourse.id !== undefined && topicToDelete) {
-              const topics = (activeCourse.topics || []).filter(t => t.id !== topicToDelete);
+              const topics = (activeCourse.topics || []).filter((t: any) => t.id !== topicToDelete);
               actions.update(activeCourse.id, { topics });
             }
             setTopicToDelete(null);
