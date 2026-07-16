@@ -475,33 +475,26 @@ export function StudyModule() {
     const mathCourse = courses.find((c: any) => c.title.includes('MATH 1151'));
     
     const fullOfficialSyllabus = [
-      { term: 'midterm', chapterTitle: 'Ch 0: Functions', subTopics: [
-        { id: 'm1-1', title: '0.1-0.2 Definition, Domain & Range', isCompleted: false },
-        { id: 'm1-2', title: '0.3-0.5 Function Families (Exponential, Log)', isCompleted: false },
-        { id: 'm1-3', title: '0.2 Translation, Reflection, Even & Odd', isCompleted: false }
-      ]},
-      { term: 'midterm', chapterTitle: 'Ch 1 & 2: Limits, Continuity & Derivative', subTopics: [
-        { id: 'm1-4', title: '1.1-1.3 Informal Limits', isCompleted: false },
-        { id: 'm1-5', title: '1.5 Continuity & Differentiability', isCompleted: false },
-        { id: 'm1-6', title: '2.1 Tangent Line & Rates of Change', isCompleted: false },
-        { id: 'm1-7', title: '2.6 The Chain Rule', isCompleted: false }
-      ]},
-      { term: 'final', chapterTitle: 'Ch 5 & 6: Integration & Applications', subTopics: [
-        { id: 'm1-8', title: '5.1-5.3 Indefinite Integral & Substitution', isCompleted: false },
-        { id: 'm1-9', title: '5.5-5.6 Definite Integral & Fundamental Theorem', isCompleted: false },
-        { id: 'm1-10', title: '6.1 Area between two curves', isCompleted: false },
-        { id: 'm1-11', title: '6.4 Arc Length', isCompleted: false }
-      ]},
-      { term: 'final', chapterTitle: 'Ch 7: Integration Techniques', subTopics: [
-        { id: 'm1-12', title: '7.2 Integration by Parts', isCompleted: false },
-        { id: 'm1-13', title: '7.4 Trigonometric Substitution', isCompleted: false }
-      ]}
+        { term: 'midterm', chapterTitle: 'Ch 0: Functions', subTopics: [
+            { id: 'm1-1', title: '0.1-0.2 Definition, Domain & Range', isCompleted: false },
+            { id: 'm1-2', title: '0.3-0.5 Function Families', isCompleted: false },
+            { id: 'm1-3', title: 'Even & Odd Functions', isCompleted: false }
+        ]},
+        { term: 'midterm', chapterTitle: 'Ch 1 & 2: Limits & Derivatives', subTopics: [
+            { id: 'm1-4', title: '1.1-1.3 Limits & Continuity', isCompleted: false },
+            { id: 'm1-5', title: '2.1 Tangent Line & Derivative', isCompleted: false }
+        ]},
+        { term: 'final', chapterTitle: 'Ch 5 & 6: Integration', subTopics: [
+            { id: 'm1-6', title: '5.1-5.3 Indefinite Integral', isCompleted: false },
+            { id: 'm1-7', title: '5.5-5.6 Definite Integral', isCompleted: false },
+            { id: 'm1-8', title: '6.1 Area between curves', isCompleted: false }
+        ]}
     ];
 
     const freshPractice = [
-      { id: 'p-1', term: 'midterm', title: 'Q1-Q6: Midterm Practice Set (Spring 2024)', isDone: false },
-      { id: 'p-2', term: 'midterm', title: 'Central Review Worksheet', isDone: false },
-      { id: 'p-3', term: 'final', title: 'Final Exam Practice Problems (Spring 2024)', isDone: false }
+        { id: 'p1', term: 'midterm', title: 'Central Review Worksheet', isDone: false },
+        { id: 'p2', term: 'midterm', title: 'Mid Exam Practice (Spring 2024)', isDone: false },
+        { id: 'p3', term: 'final', title: 'Final Exam Practice (Spring 2024)', isDone: false }
     ];
 
     if (!mathCourse) {
@@ -518,7 +511,7 @@ export function StudyModule() {
       } as any);
     } else {
       // Safely check if we need to force the update to avoid infinite loops
-      const needsUpdate = !mathCourse.practice || !mathCourse.practice[0]?.term || mathCourse.syllabus?.[0]?.subTopics?.[0]?.title !== '0.1-0.2 Definition, Domain & Range';
+      const needsUpdate = !mathCourse.practice || !mathCourse.practice[0]?.term || mathCourse.syllabus?.[0]?.subTopics?.[2]?.title !== 'Even & Odd Functions';
       if (needsUpdate) {
         actions.update(mathCourse.id!, { 
             syllabus: fullOfficialSyllabus,
@@ -976,25 +969,31 @@ export function StudyModule() {
             })()}
 
             {activeTab === 'practice' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-bold text-on-surface">Practice Problems</h3>
-                
-                {/* Midterm Practice */}
-                <div>
-                  <h4 className="text-sm font-bold text-primary mb-3">Midterm Practice</h4>
-                  <div className="space-y-2">
-                      <div className="p-3 rounded-xl bg-white/5 border border-white/5">Central Review Worksheet (Math 1151)</div>
-                      <div className="p-3 rounded-xl bg-white/5 border border-white/5">Mid Exam Practice Problems (Spring 2024)</div>
-                  </div>
-                </div>
-
-                {/* Final Practice */}
-                <div>
-                  <h4 className="text-sm font-bold text-secondary mb-3">Final Practice</h4>
-                  <div className="space-y-2">
-                      <div className="p-3 rounded-xl bg-white/5 border border-white/5">Final Exam Practice Problems (Spring 2024)</div>
-                  </div>
-                </div>
+              <div className="space-y-4">
+                  <h3 className="text-lg font-bold text-on-surface">Practice Problems</h3>
+                  {(activeCourse.practice || []).map((p: any) => (
+                      <div key={p.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/5 transition-all hover:bg-white/10">
+                          <button 
+                              onClick={() => {
+                                  const newPractice = activeCourse.practice.map((item: any) => 
+                                      item.id === p.id ? { ...item, isDone: !item.isDone } : item
+                                  );
+                                  actions.update(activeCourse.id!, { practice: newPractice });
+                              }}
+                              className={`w-6 h-6 shrink-0 rounded border flex items-center justify-center transition-colors ${p.isDone ? 'bg-primary border-primary' : 'border-white/20'}`}
+                          >
+                              {p.isDone && <span className="text-on-primary text-xs font-bold">✓</span>}
+                          </button>
+                          <span className={`text-sm ${p.isDone ? 'line-through text-on-surface-variant/50' : 'text-on-surface'}`}>
+                              {p.title} <span className="text-[10px] uppercase tracking-wider opacity-50 ml-2 bg-black/20 px-2 py-0.5 rounded">({p.term})</span>
+                          </span>
+                      </div>
+                  ))}
+                  {(!activeCourse.practice || activeCourse.practice.length === 0) && (
+                      <div className="text-center p-8 text-on-surface-variant bg-white/5 rounded-xl border border-white/5">
+                          No practice problems mapped for this course.
+                      </div>
+                  )}
               </div>
             )}
           </div>
